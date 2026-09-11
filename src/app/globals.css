@@ -391,7 +391,7 @@ textarea {
   background: var(--paper);
   color: var(--ink);
   inset: 0;
-  overflow: hidden;
+  overflow: auto;
   position: fixed;
   z-index: 20;
 }
@@ -442,7 +442,7 @@ textarea {
 }
 
 .detail-header h1 {
-  font-size: clamp(3.4rem, 6.5vw, 8rem);
+  font-size: clamp(2.8rem, 5vw, 6.25rem);
   font-weight: 700;
   letter-spacing: -0.075em;
   line-height: 0.92;
@@ -464,10 +464,10 @@ textarea {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: clamp(0.5rem, 1.2vw, 1.5rem);
-  inset: 11vh 2vw 1vh;
+  gap: clamp(1rem, 1.6vw, 2rem);
+  inset: 10vh 2vw 1vh;
   justify-content: center;
-  padding-top: clamp(6rem, 10vh, 9rem);
+  padding-top: clamp(5.5rem, 9vh, 7.5rem);
   position: absolute;
 }
 
@@ -476,12 +476,36 @@ textarea {
   aspect-ratio: 1;
   border-radius: 50%;
   flex: 0 0 auto;
-  height: min(35vh, 22vw);
+  height: min(43vh, 22.5vw);
   margin: 0;
-  min-height: 15.5rem;
-  min-width: 15.5rem;
+  min-height: 17rem;
+  min-width: 17rem;
   overflow: hidden;
-  width: min(35vh, 22vw);
+  width: min(43vh, 22.5vw);
+}
+
+.detail-field[data-items="1"] .detail-circle,
+.detail-field[data-items="1"] .detail-photo {
+  height: min(62vh, 42vw);
+  width: min(62vh, 42vw);
+}
+
+.detail-field[data-items="2"] .detail-circle,
+.detail-field[data-items="2"] .detail-photo {
+  height: min(55vh, 34vw);
+  width: min(55vh, 34vw);
+}
+
+.detail-field[data-items="3"] .detail-circle,
+.detail-field[data-items="3"] .detail-photo {
+  height: min(47vh, 28vw);
+  width: min(47vh, 28vw);
+}
+
+.detail-field[data-items="5"] .detail-circle,
+.detail-field[data-items="5"] .detail-photo {
+  height: min(36vh, 21vw);
+  width: min(36vh, 21vw);
 }
 
 .detail-circle {
@@ -503,14 +527,24 @@ textarea {
 }
 
 .detail-circle p {
-  font-size: clamp(1.2rem, 1.75vw, 2rem);
+  font-size: clamp(1rem, 1.45vw, 1.7rem);
   font-weight: 600;
   line-height: 1.35;
   margin: 0;
-  max-height: 72%;
-  overflow: hidden;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.detail-circle.detail-copy-medium p {
+  font-size: clamp(0.95rem, 1.2vw, 1.35rem);
+}
+
+.detail-circle.detail-copy-long p {
+  font-size: clamp(0.85rem, 1vw, 1.1rem);
+}
+
+.detail-circle.detail-copy-xlong p {
+  font-size: clamp(0.75rem, 0.85vw, 0.95rem);
 }
 
 .detail-circle:nth-child(even) {
@@ -591,8 +625,8 @@ textarea {
     padding: 5rem 1rem 2rem;
   }
 
-  .detail-circle,
-  .detail-photo {
+  .detail-field[data-items] .detail-circle,
+  .detail-field[data-items] .detail-photo {
     height: min(76vw, 19rem);
     min-height: 0;
     min-width: 0;

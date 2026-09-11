@@ -22,6 +22,13 @@ function withSuffix(value: string, suffix: string) {
   return value.endsWith(suffix) ? value : `${value}${suffix}`;
 }
 
+function detailCopySize(value: string) {
+  if (value.length > 190) return "detail-copy-xlong";
+  if (value.length > 130) return "detail-copy-long";
+  if (value.length > 70) return "detail-copy-medium";
+  return "detail-copy-short";
+}
+
 export function ScreenClient() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [joinQr, setJoinQr] = useState("");
@@ -165,6 +172,14 @@ export function ScreenClient() {
   }
 
   const drawing = phase === "spinning" || phase === "revealing";
+  const detailItemCount = selected
+    ? [
+        selected.workInterest,
+        selected.personalInterest,
+        selected.message,
+        ...(selected.photos ?? []),
+      ].filter(Boolean).length
+    : 0;
 
   return (
     <main className="screen-shell" data-phase={phase}>
@@ -248,23 +263,29 @@ export function ScreenClient() {
             </p>
           </header>
 
-          <div className="detail-field">
+          <div className="detail-field" data-items={detailItemCount}>
             {selected.workInterest && (
-              <article className="detail-circle detail-circle-work">
+              <article
+                className={`detail-circle detail-circle-work ${detailCopySize(selected.workInterest)}`}
+              >
                 <span>작업 관심사</span>
                 <p>{selected.workInterest}</p>
               </article>
             )}
 
             {selected.personalInterest && (
-              <article className="detail-circle detail-circle-personal">
+              <article
+                className={`detail-circle detail-circle-personal ${detailCopySize(selected.personalInterest)}`}
+              >
                 <span>개인 관심사</span>
                 <p>{selected.personalInterest}</p>
               </article>
             )}
 
             {selected.message && (
-              <article className="detail-circle detail-circle-message">
+              <article
+                className={`detail-circle detail-circle-message ${detailCopySize(selected.message)}`}
+              >
                 <span>하고 싶은 말</span>
                 <p>{selected.message}</p>
               </article>
