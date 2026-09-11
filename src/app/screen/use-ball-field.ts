@@ -16,6 +16,20 @@ import {
 import type { Participant } from "@/lib/participants";
 
 const NOTICE_MS = 2400;
+/** How long the drawn ball takes to open out into the full screen. */
+const OPEN_MS = 460;
+/** The circle lingers under the card for a moment so no red shows through. */
+const OPEN_HOLD_MS = 140;
+
+/** The drawn ball's circle, frozen where it was, ready to expand. */
+export type Opening = {
+  id: string;
+  x: number;
+  y: number;
+  r: number;
+  /** Radius that clears the farthest corner of the screen. */
+  cover: number;
+};
 
 type Options = {
   participants: Participant[];
@@ -65,6 +79,15 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
 
   const [drawn, setDrawn] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
+  const [opening, setOpening] = useState<Opening | null>(null);
+  /** Mirrors `opening` so a key press can check it without waiting a render. */
+  const openingRef = useRef(false);
+  const openTimersRef = useRef<number[]>([]);
+
+  const clearOpenTimers = useCallback(() => {
+    for (const timer of openTimersRef.current) window.clearTimeout(timer);
+    openTimersRef.current = [];
+  }, []);
 
   useLayoutEffect(() => {
     callbacksRef.current = { onWinner, onReset };
@@ -202,6 +225,9 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
 
   /** Picks one participant who has not come up yet and opens their card. */
   const startDraw = useCallback(() => {
+    // Ignore a second press while a ball is still opening out.
+    if (openingRef.current) return;
+
     const roster = participantsRef.current;
     if (roster.length === 0) {
       showNotice("아직 참가자가 없습니다");
@@ -223,10 +249,49 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
     // cannot land on the same person.
     drawnRef.current = [...drawnRef.current, winner.id];
     setDrawn(drawnRef.current);
-    callbacksRef.current.onWinner(winner);
+
+    const ball = ballsRef.current.find((candidate) => candidate.id === winner.id);
+    const { width, height } = sizeRef.current;
+
+    if (!ball || !width || !height) {
+      callbacksRef.current.onWinner(winner);
+      return;
+    }
+
+    // Grow from where the ball sits to whichever corner is furthest away.
+    const corner = Math.max(
+      Math.hypot(ball.x, ball.y),
+      Math.hypot(width - ball.x, ball.y),
+      Math.hypot(ball.x, height - ball.y),
+      Math.hypot(width - ball.x, height - ball.y),
+    );
+
+    openingRef.current = true;
+    setOpening({
+      id: ball.id,
+      x: ball.x,
+      y: ball.y,
+      r: ball.r,
+      cover: corner,
+    });
+
+    openTimersRef.current.push(
+      window.setTimeout(() => {
+        callbacksRef.current.onWinner(winner);
+        openTimersRef.current.push(
+          window.setTimeout(() => {
+            openingRef.current = false;
+            setOpening(null);
+          }, OPEN_HOLD_MS),
+        );
+      }, OPEN_MS),
+    );
   }, [showNotice]);
 
   const resetDraw = useCallback(() => {
+    clearOpenTimers();
+    openingRef.current = false;
+    setOpening(null);
     drawnRef.current = [];
     setDrawn([]);
 
@@ -239,7 +304,7 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
 
     callbacksRef.current.onReset();
     showNotice("추첨을 초기화했습니다");
-  }, [showNotice]);
+  }, [clearOpenTimers, showNotice]);
 
   // Ctrl + Shift on its own draws; Ctrl + Shift + R resets. The draw fires on
   // key-up so that a chord continuing into another key (R) never triggers it.
@@ -285,7 +350,21 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
     };
   }, [resetDraw, startDraw]);
 
-  useEffect(() => () => window.clearTimeout(noticeTimerRef.current), []);
+  useEffect(
+    () => () => {
+      window.clearTimeout(noticeTimerRef.current);
+      clearOpenTimers();
+    },
+    [clearOpenTimers],
+  );
 
-  return { fieldRef, registerBall, drawn, notice, startDraw, resetDraw };
+  return {
+    fieldRef,
+    registerBall,
+    drawn,
+    notice,
+    opening,
+    startDraw,
+    resetDraw,
+  };
 }

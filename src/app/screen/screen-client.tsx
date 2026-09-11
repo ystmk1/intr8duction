@@ -3,6 +3,7 @@
 import Image from "next/image";
 import QRCode from "qrcode";
 import {
+  CSSProperties,
   MouseEvent as ReactMouseEvent,
   useCallback,
   useEffect,
@@ -46,7 +47,7 @@ export function ScreenClient() {
     setSelected(null);
   }, []);
 
-  const { fieldRef, registerBall, drawn, notice } = useBallField({
+  const { fieldRef, registerBall, drawn, notice, opening } = useBallField({
     participants,
     onWinner,
     onReset,
@@ -190,6 +191,7 @@ export function ScreenClient() {
               key={participant.id}
               participant={participant}
               order={order}
+              covered={opening?.id === participant.id}
               registerBall={registerBall}
               onOpen={() => setSelected(participant)}
               onDeleteMenu={openDeleteMenu}
@@ -197,6 +199,22 @@ export function ScreenClient() {
           );
         })}
       </div>
+
+      {/* The drawn ball, frozen where it was and opening out into the card. */}
+      {opening && (
+        <div
+          className="draw-open"
+          aria-hidden="true"
+          style={
+            {
+              "--open-cx": `${opening.x}px`,
+              "--open-cy": `${opening.y}px`,
+              "--open-r": `${opening.r}px`,
+              "--open-cover": `${opening.cover}px`,
+            } as CSSProperties
+          }
+        />
+      )}
 
       {notice && (
         <p className="screen-notice" role="status">
@@ -318,6 +336,8 @@ type BallProps = {
   participant: Participant;
   /** Position in the draw order, or -1 while the ball is still in the pool. */
   order: number;
+  /** True while the expanding circle sits exactly on top of this ball. */
+  covered: boolean;
   registerBall: (id: string, node: HTMLElement | null) => void;
   onOpen: () => void;
   onDeleteMenu: (
@@ -329,6 +349,7 @@ type BallProps = {
 function ParticipantBall({
   participant,
   order,
+  covered,
   registerBall,
   onOpen,
   onDeleteMenu,
@@ -347,6 +368,7 @@ function ParticipantBall({
       className="participant-ball"
       ref={nodeRef}
       data-drawn={order >= 0 || undefined}
+      data-covered={covered || undefined}
       onClick={onOpen}
       onContextMenu={(event) => onDeleteMenu(event, participant)}
       aria-label={`${participant.name}, ${participant.studentId}학번, ${participant.major}전공 소개 보기${order >= 0 ? ` (${order + 1}번째 추첨)` : ""}`}
