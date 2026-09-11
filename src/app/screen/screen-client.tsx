@@ -3,31 +3,20 @@
 import Image from "next/image";
 import QRCode from "qrcode";
 import {
-  CSSProperties,
   MouseEvent as ReactMouseEvent,
+  useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
+import { useBallField } from "./use-ball-field";
 import type { Participant } from "@/lib/participants";
-
-type BallStyle = CSSProperties & {
-  "--ball-index": number;
-  "--ball-shift": string;
-};
 
 type DeleteMenu = {
   participant: Participant;
   x: number;
   y: number;
 };
-
-function ballStyle(index: number): BallStyle {
-  const shifts = [-8, 5, -2, 9, -5, 3];
-  return {
-    "--ball-index": index,
-    "--ball-shift": `${shifts[index % shifts.length]}%`,
-  };
-}
 
 function withSuffix(value: string, suffix: string) {
   return value.endsWith(suffix) ? value : `${value}${suffix}`;
@@ -42,15 +31,40 @@ export function ScreenClient() {
     "idle" | "deleting" | "error"
   >("idle");
 
+  const onWinner = useCallback((participant: Participant) => {
+    setSelected(participant);
+  }, []);
+
+  const onReset = useCallback(() => {
+    setSelected(null);
+  }, []);
+
+  const {
+    fieldRef,
+    registerBall,
+    phase,
+    drawn,
+    winnerId,
+    notice,
+    endDraw,
+  } = useBallField({ participants, onWinner, onReset });
+
   useEffect(() => {
     let active = true;
+    let signature = "";
 
     async function refresh() {
       try {
         const response = await fetch("/api/participants", { cache: "no-store" });
         if (!response.ok) return;
-        const next = (await response.json()) as Participant[];
-        if (active) setParticipants(next);
+
+        const body = await response.text();
+        // Skip the state update when the roster is unchanged, so the ball
+        // field is not re-rendered on every polling cycle.
+        if (!active || body === signature) return;
+
+        signature = body;
+        setParticipants(JSON.parse(body) as Participant[]);
       } catch {
         // The next polling cycle retries automatically.
       }
@@ -75,16 +89,30 @@ export function ScreenClient() {
     };
   }, []);
 
+  const closeDetail = useCallback(() => {
+    setSelected(null);
+    endDraw();
+  }, [endDraw]);
+
+  /** Clicking a ball takes over from any draw still in flight. */
+  const openDetail = useCallback(
+    (participant: Participant) => {
+      endDraw();
+      setSelected(participant);
+    },
+    [endDraw],
+  );
+
   useEffect(() => {
     if (!selected) return;
 
     function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setSelected(null);
+      if (event.key === "Escape") closeDetail();
     }
 
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [selected]);
+  }, [closeDetail, selected]);
 
   useEffect(() => {
     if (!deleteMenu) return;
@@ -128,7 +156,7 @@ export function ScreenClient() {
       setParticipants((current) =>
         current.filter((participant) => participant.id !== target.id),
       );
-      setSelected((current) => (current?.id === target.id ? null : current));
+      if (selected?.id === target.id) closeDetail();
       setDeleteMenu(null);
       setDeleteState("idle");
     } catch {
@@ -136,8 +164,10 @@ export function ScreenClient() {
     }
   }
 
+  const drawing = phase === "spinning" || phase === "revealing";
+
   return (
-    <main className="screen-shell">
+    <main className="screen-shell" data-phase={phase}>
       <Image
         className="screen-logo"
         src="/logo_white.svg"
@@ -145,35 +175,56 @@ export function ScreenClient() {
         width={108}
         height={108}
         priority
+        data-ball-block
       />
 
-      <div className="screen-stage" aria-live="polite">
-        <div className="ball-field">
-          {participants.map((participant, index) => (
-            <button
-              type="button"
-              className="participant-ball"
+      <div
+        className="ball-field"
+        ref={fieldRef}
+        aria-label="참가자 공"
+        aria-live="polite"
+      >
+        {participants.map((participant) => {
+          const order = drawn.indexOf(participant.id);
+          return (
+            <ParticipantBall
               key={participant.id}
-              style={ballStyle(index)}
-              onClick={() => setSelected(participant)}
-              onContextMenu={(event) => openDeleteMenu(event, participant)}
-              aria-label={`${participant.name} 소개 보기`}
-            >
-              <strong>{participant.name}</strong>
-              <span>
-                {participant.studentId} · {participant.major}
-              </span>
-              {(participant.workInterest || participant.personalInterest) && (
-                <small>
-                  {participant.workInterest || participant.personalInterest}
-                </small>
-              )}
-            </button>
-          ))}
-        </div>
+              participant={participant}
+              order={order}
+              isWinner={participant.id === winnerId}
+              dimmed={drawing && participant.id !== winnerId}
+              registerBall={registerBall}
+              onOpen={() => openDetail(participant)}
+              onDeleteMenu={openDeleteMenu}
+            />
+          );
+        })}
       </div>
 
-      <aside className="screen-qr" aria-label="QR code">
+      {drawing && (
+        <p className="draw-banner" role="status">
+          {phase === "spinning" ? "추첨 중" : "당첨"}
+        </p>
+      )}
+
+      {notice && (
+        <p className="screen-notice" role="status">
+          {notice}
+        </p>
+      )}
+
+      <div className="screen-hud" data-ball-block>
+        <p className="hud-count">
+          <strong>{drawn.length}</strong>
+          <span>/ {participants.length}</span>
+        </p>
+        <p className="hud-keys">
+          <kbd>Ctrl</kbd> + <kbd>Shift</kbd> 추첨 · <kbd>Ctrl</kbd> +{" "}
+          <kbd>Shift</kbd> + <kbd>R</kbd> 초기화
+        </p>
+      </div>
+
+      <aside className="screen-qr" aria-label="QR code" data-ball-block>
         {joinQr ? (
           <Image src={joinQr} alt="" width={520} height={520} unoptimized />
         ) : (
@@ -191,7 +242,7 @@ export function ScreenClient() {
           <button
             className="detail-close"
             type="button"
-            onClick={() => setSelected(null)}
+            onClick={closeDetail}
             aria-label="닫기"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -202,7 +253,8 @@ export function ScreenClient() {
           <header className="detail-header">
             <h1>{selected.name}</h1>
             <p>
-              {withSuffix(selected.studentId, "학번")} {withSuffix(selected.major, "전공")}
+              {withSuffix(selected.studentId, "학번")}{" "}
+              {withSuffix(selected.major, "전공")}
               {selected.subMajor && ` ${selected.subMajor}`}
             </p>
           </header>
@@ -263,11 +315,74 @@ export function ScreenClient() {
                 ? "다시 삭제"
                 : "삭제"}
           </button>
-          <button type="button" role="menuitem" onClick={() => setDeleteMenu(null)}>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => setDeleteMenu(null)}
+          >
             취소
           </button>
         </div>
       )}
     </main>
+  );
+}
+
+type BallProps = {
+  participant: Participant;
+  /** Position in the draw order, or -1 while the ball is still in the pool. */
+  order: number;
+  isWinner: boolean;
+  dimmed: boolean;
+  registerBall: (id: string, node: HTMLElement | null) => void;
+  onOpen: () => void;
+  onDeleteMenu: (
+    event: ReactMouseEvent<HTMLButtonElement>,
+    participant: Participant,
+  ) => void;
+};
+
+function ParticipantBall({
+  participant,
+  order,
+  isWinner,
+  dimmed,
+  registerBall,
+  onOpen,
+  onDeleteMenu,
+}: BallProps) {
+  const nodeRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    const node = nodeRef.current;
+    registerBall(participant.id, node);
+    return () => registerBall(participant.id, null);
+  }, [participant.id, registerBall]);
+
+  const interest = participant.workInterest || participant.personalInterest;
+
+  return (
+    <button
+      type="button"
+      className="participant-ball"
+      ref={nodeRef}
+      data-drawn={order >= 0 || undefined}
+      data-winner={isWinner || undefined}
+      data-dimmed={dimmed || undefined}
+      onClick={onOpen}
+      onContextMenu={(event) => onDeleteMenu(event, participant)}
+      aria-label={`${participant.name} 소개 보기${order >= 0 ? ` (${order + 1}번째 추첨)` : ""}`}
+    >
+      <strong>{participant.name}</strong>
+      <span>
+        {participant.studentId} · {participant.major}
+      </span>
+      {interest && <small>{interest}</small>}
+      {order >= 0 && (
+        <em className="ball-order" aria-hidden="true">
+          {order + 1}
+        </em>
+      )}
+    </button>
   );
 }
