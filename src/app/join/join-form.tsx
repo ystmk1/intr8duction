@@ -138,7 +138,7 @@ export function JoinForm() {
     return (
       <main className="join-shell join-complete">
         <Image src="/logo_white.svg" alt="cre8" width={120} height={120} priority />
-        <p>접수 완료</p>
+        <p>제출 완료</p>
       </main>
     );
   }
