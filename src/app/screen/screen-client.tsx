@@ -21,6 +21,7 @@ function ballStyle(index: number): BallStyle {
 export function ScreenClient() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [joinQr, setJoinQr] = useState("");
+  const [selected, setSelected] = useState<Participant | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -55,6 +56,17 @@ export function ScreenClient() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!selected) return;
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setSelected(null);
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [selected]);
+
   return (
     <main className="screen-shell">
       <Image
@@ -69,10 +81,13 @@ export function ScreenClient() {
       <div className="screen-stage" aria-live="polite">
         <div className="ball-field">
           {participants.map((participant, index) => (
-            <article
+            <button
+              type="button"
               className="participant-ball"
               key={participant.id}
               style={ballStyle(index)}
+              onClick={() => setSelected(participant)}
+              aria-label={`${participant.name} 소개 보기`}
             >
               <strong>{participant.name}</strong>
               <span>
@@ -83,7 +98,7 @@ export function ScreenClient() {
                   {participant.workInterest || participant.personalInterest}
                 </small>
               )}
-            </article>
+            </button>
           ))}
         </div>
       </div>
@@ -95,6 +110,66 @@ export function ScreenClient() {
           <div className="qr-loading" />
         )}
       </aside>
+
+      {selected && (
+        <section
+          className="participant-detail"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${selected.name} 소개`}
+        >
+          <button
+            className="detail-close"
+            type="button"
+            onClick={() => setSelected(null)}
+            aria-label="닫기"
+          >
+            ×
+          </button>
+
+          <header className="detail-header">
+            <h1>{selected.name}</h1>
+            <p>
+              {selected.major} · {selected.studentId}
+              {selected.subMajor && <span>{selected.subMajor}</span>}
+            </p>
+          </header>
+
+          <div className="detail-field">
+            {selected.workInterest && (
+              <article className="detail-circle detail-circle-work">
+                <span>작업 관심사</span>
+                <p>{selected.workInterest}</p>
+              </article>
+            )}
+
+            {selected.personalInterest && (
+              <article className="detail-circle detail-circle-personal">
+                <span>개인 관심사</span>
+                <p>{selected.personalInterest}</p>
+              </article>
+            )}
+
+            {selected.message && (
+              <article className="detail-circle detail-circle-message">
+                <span>하고 싶은 말</span>
+                <p>{selected.message}</p>
+              </article>
+            )}
+
+            {(selected.photos ?? []).map((photo, index) => (
+              <figure
+                className={`detail-photo detail-photo-${index + 1}`}
+                key={photo}
+              >
+                {/* User uploads have dynamic data URLs or Supabase Storage URLs. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photo} alt={`${selected.name} 사진 ${index + 1}`} />
+              </figure>
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }

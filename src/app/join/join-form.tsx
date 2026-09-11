@@ -1,31 +1,56 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useState } from "react";
 
 type Status = "idle" | "submitting" | "done" | "error";
 
 export function JoinForm() {
   const [status, setStatus] = useState<Status>("idle");
+  const [photoCount, setPhotoCount] = useState(0);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  function handlePhotos(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.currentTarget.files ?? []);
+
+    if (files.length > 2) {
+      event.currentTarget.value = "";
+      setPhotoCount(0);
+      setErrorMessage("사진은 2장까지 선택할 수 있습니다.");
+      return;
+    }
+
+    const oversized = files.some((file) => file.size > 5 * 1024 * 1024);
+    if (oversized) {
+      event.currentTarget.value = "";
+      setPhotoCount(0);
+      setErrorMessage("사진 한 장은 5MB 이하여야 합니다.");
+      return;
+    }
+
+    setPhotoCount(files.length);
+    setErrorMessage("");
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus("submitting");
+    setErrorMessage("");
 
     const form = event.currentTarget;
-    const payload = Object.fromEntries(new FormData(form));
+    const payload = new FormData(form);
 
     try {
       const response = await fetch("/api/participants", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: payload,
       });
 
       if (!response.ok) throw new Error("submit failed");
       setStatus("done");
     } catch {
       setStatus("error");
+      setErrorMessage("다시 시도해 주세요.");
     }
   }
 
@@ -92,13 +117,25 @@ export function JoinForm() {
           <textarea name="message" maxLength={240} rows={3} />
         </label>
 
+        <label className="photo-field">
+          <span>사진</span>
+          <input
+            type="file"
+            name="photos"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            onChange={handlePhotos}
+          />
+          <small>{photoCount} / 2</small>
+        </label>
+
         <button type="submit" disabled={status === "submitting"}>
           {status === "submitting" ? "제출 중" : "제출"}
         </button>
 
-        {status === "error" && (
+        {(status === "error" || errorMessage) && (
           <p className="form-error" role="alert">
-            다시 시도해 주세요.
+            {errorMessage}
           </p>
         )}
       </form>

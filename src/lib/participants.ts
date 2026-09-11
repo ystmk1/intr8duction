@@ -7,6 +7,7 @@ export type Participant = {
   workInterest: string;
   personalInterest: string;
   message: string;
+  photos: string[];
   createdAt: string;
 };
 
