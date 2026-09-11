@@ -14,9 +14,6 @@ export type Ball = {
   vx: number;
   vy: number;
   r: number;
-  /** Current rotation in degrees, and the resting tilt it springs back to. */
-  rot: number;
-  tilt: number;
   /** True while the ball is still rising in from below the bottom edge. */
   entering: boolean;
   /** Last radius written to the DOM, so we only touch layout when it changes. */
@@ -32,20 +29,16 @@ export type WorldOptions = {
 
 const SUBSTEP = 1 / 120;
 const MAX_FRAME = 0.06;
-const MAX_TILT = 14;
+const BALL_GAP = 8;
+const WALL_MARGIN = 10;
 /**
  * Separating one pair pushes a ball into the next one, so the contacts are
  * relaxed a few times per substep before the field is squeezed back in bounds.
  */
-const RELAX_PASSES = 3;
+const RELAX_PASSES = 7;
 
 function clamp(value: number, min: number, max: number) {
   return value < min ? min : value > max ? max : value;
-}
-
-/** Exponential approach that behaves the same at any frame rate. */
-function approach(current: number, target: number, rate: number, dt: number) {
-  return current + (target - current) * (1 - Math.exp(-rate * dt));
 }
 
 export function createBall(
@@ -53,34 +46,61 @@ export function createBall(
   width: number,
   height: number,
   r: number,
+  spawnIndex = 0,
+  spawnCount = 1,
 ): Ball {
   const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.1;
+  const step = r * 2 + BALL_GAP;
+  const availableWidth = Math.max(0, width - WALL_MARGIN * 2 - r * 2);
+  const maxColumns = Math.max(1, Math.floor(availableWidth / step) + 1);
+  const columns = Math.min(spawnCount, maxColumns);
+  const column = spawnIndex % columns;
+  const row = Math.floor(spawnIndex / columns);
+  const rowWidth = (columns - 1) * step;
+
   return {
     id,
-    x: clamp(width * (0.2 + Math.random() * 0.6), r, Math.max(r, width - r)),
-    y: height + r + Math.random() * height * 0.35,
+    x: width / 2 - rowWidth / 2 + column * step,
+    y: height + WALL_MARGIN + r + row * step,
     vx: Math.cos(angle),
     vy: Math.sin(angle),
     r,
-    rot: 0,
-    tilt: (Math.random() - 0.5) * 2 * MAX_TILT,
     entering: true,
     renderedR: -1,
   };
 }
 
-/** Drops a ball at a random spot inside the field with a random heading. */
-export function scatterBall(ball: Ball, width: number, height: number) {
+/** Places the reset roster on a non-overlapping grid with random headings. */
+export function scatterBall(
+  ball: Ball,
+  width: number,
+  height: number,
+  index = 0,
+  count = 1,
+) {
   const angle = Math.random() * Math.PI * 2;
+  const step = ball.r * 2 + BALL_GAP;
+  const availableWidth = Math.max(
+    0,
+    width - WALL_MARGIN * 2 - ball.r * 2,
+  );
+  const maxColumns = Math.max(1, Math.floor(availableWidth / step) + 1);
+  const columns = Math.min(count, maxColumns);
+  const rows = Math.ceil(count / columns);
+  const column = index % columns;
+  const row = Math.floor(index / columns);
+  const rowWidth = (Math.min(columns, count - row * columns) - 1) * step;
+  const gridHeight = (rows - 1) * step;
+
   ball.x = clamp(
-    width * (0.08 + Math.random() * 0.84),
-    ball.r,
-    Math.max(ball.r, width - ball.r),
+    width / 2 - rowWidth / 2 + column * step,
+    ball.r + WALL_MARGIN,
+    Math.max(ball.r + WALL_MARGIN, width - ball.r - WALL_MARGIN),
   );
   ball.y = clamp(
-    height * (0.08 + Math.random() * 0.84),
-    ball.r,
-    Math.max(ball.r, height - ball.r),
+    height / 2 - gridHeight / 2 + row * step,
+    ball.r + WALL_MARGIN,
+    Math.max(ball.r + WALL_MARGIN, height - ball.r - WALL_MARGIN),
   );
   ball.vx = Math.cos(angle);
   ball.vy = Math.sin(angle);
@@ -142,9 +162,6 @@ function integrate(balls: Ball[], h: number, options: WorldOptions) {
     } else {
       bounceOffWalls(ball, width, height);
     }
-
-    const target = ball.tilt + clamp(ball.vx * 0.02, -MAX_TILT, MAX_TILT);
-    ball.rot = approach(ball.rot, target, 3, h);
   }
 }
 
@@ -164,19 +181,24 @@ function reflect(ball: Ball, nx: number, ny: number) {
 }
 
 function bounceOffWalls(ball: Ball, width: number, height: number) {
-  if (ball.x - ball.r < 0) {
-    ball.x = ball.r;
+  const minX = ball.r + WALL_MARGIN;
+  const maxX = Math.max(minX, width - ball.r - WALL_MARGIN);
+  const minY = ball.r + WALL_MARGIN;
+  const maxY = Math.max(minY, height - ball.r - WALL_MARGIN);
+
+  if (ball.x < minX) {
+    ball.x = minX;
     reflect(ball, 1, 0);
-  } else if (ball.x + ball.r > width) {
-    ball.x = width - ball.r;
+  } else if (ball.x > maxX) {
+    ball.x = maxX;
     reflect(ball, -1, 0);
   }
 
-  if (ball.y - ball.r < 0) {
-    ball.y = ball.r;
+  if (ball.y < minY) {
+    ball.y = minY;
     reflect(ball, 0, 1);
-  } else if (ball.y + ball.r > height) {
-    ball.y = height - ball.r;
+  } else if (ball.y > maxY) {
+    ball.y = maxY;
     reflect(ball, 0, -1);
   }
 }
@@ -185,17 +207,24 @@ function bounceOffWalls(ball: Ball, width: number, height: number) {
 function resolveBallCollisions(balls: Ball[]) {
   for (let i = 0; i < balls.length; i += 1) {
     const a = balls[i];
-    if (a.entering) continue;
 
     for (let j = i + 1; j < balls.length; j += 1) {
       const b = balls[j];
-      if (b.entering) continue;
 
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const minimum = a.r + b.r;
-      const squared = dx * dx + dy * dy;
-      if (squared >= minimum * minimum || squared < 1e-9) continue;
+      let dx = b.x - a.x;
+      let dy = b.y - a.y;
+      const minimum = a.r + b.r + BALL_GAP;
+      let squared = dx * dx + dy * dy;
+      if (squared >= minimum * minimum) continue;
+
+      // Two balls can occasionally receive the same point after a resize.
+      // Give that degenerate pair a stable direction so it cannot stay fused.
+      if (squared < 1e-9) {
+        const angle = ((i + 1) * 1.618 + (j + 1) * 0.73) * Math.PI;
+        dx = Math.cos(angle) * 0.001;
+        dy = Math.sin(angle) * 0.001;
+        squared = dx * dx + dy * dy;
+      }
 
       const distance = Math.sqrt(squared);
       const nx = dx / distance;

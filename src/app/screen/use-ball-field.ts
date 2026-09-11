@@ -23,11 +23,12 @@ type Options = {
   onReset: () => void;
 };
 
-/** Balls shrink as the field fills up, so ~13% of the screen stays covered. */
+/** Keep the field airy; even a one-person roster never produces a giant ball. */
 function radiusFor(count: number, width: number, height: number) {
   if (count < 1) return 0;
-  const ideal = Math.sqrt((width * height * 0.13) / (Math.PI * count));
-  return Math.max(30, Math.min(ideal, 108));
+  const ideal = Math.sqrt((width * height * 0.085) / (Math.PI * count));
+  const viewportCap = Math.min(78, Math.min(width, height) * 0.095);
+  return Math.max(18, Math.min(ideal, viewportCap));
 }
 
 function baseSpeed(width: number, height: number) {
@@ -106,10 +107,17 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
     const radius = radiusFor(participants.length, width, height);
     const existing = new Map(ballsRef.current.map((ball) => [ball.id, ball]));
 
-    ballsRef.current = participants.map((participant) => {
+    ballsRef.current = participants.map((participant, index) => {
       const ball =
         existing.get(participant.id) ??
-        createBall(participant.id, width, height, radius);
+        createBall(
+          participant.id,
+          width,
+          height,
+          radius,
+          index,
+          participants.length,
+        );
       ball.r = radius;
       return ball;
     });
@@ -178,9 +186,7 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
           ball.renderedR = ball.r;
         }
 
-        node.style.transform =
-          `translate3d(${ball.x - ball.r}px, ${ball.y - ball.r}px, 0)` +
-          ` rotate(${ball.rot.toFixed(2)}deg)`;
+        node.style.transform = `translate3d(${ball.x - ball.r}px, ${ball.y - ball.r}px, 0)`;
       }
     }
 
@@ -226,7 +232,9 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
 
     const { width, height } = sizeRef.current;
     if (width && height) {
-      for (const ball of ballsRef.current) scatterBall(ball, width, height);
+      for (const [index, ball] of ballsRef.current.entries()) {
+        scatterBall(ball, width, height, index, ballsRef.current.length);
+      }
     }
 
     callbacksRef.current.onReset();

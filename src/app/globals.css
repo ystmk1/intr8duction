@@ -84,7 +84,7 @@ textarea {
   justify-content: center;
   left: 0;
   overflow: hidden;
-  padding: 14%;
+  padding: 16% 12% 12%;
   position: absolute;
   text-align: center;
   top: 0;
@@ -113,32 +113,28 @@ textarea {
 }
 
 .participant-ball strong {
-  font-size: clamp(0.7rem, calc(var(--ball-r, 60px) * 0.3), 2.1rem);
-  font-weight: 700;
-  line-height: 1.05;
-  max-width: 100%;
-  overflow-wrap: anywhere;
-}
-
-.participant-ball span {
-  font-size: clamp(0.55rem, calc(var(--ball-r, 60px) * 0.15), 1rem);
-  line-height: 1.2;
-  margin-top: 0.45rem;
+  display: block;
+  font-size: clamp(0.85rem, calc(var(--ball-r, 60px) * 0.28), 1.65rem);
+  font-weight: 650;
+  line-height: 1.1;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  width: 100%;
 }
 
-.participant-ball small {
-  display: -webkit-box;
-  font-size: clamp(0.5rem, calc(var(--ball-r, 60px) * 0.125), 0.86rem);
-  font-weight: 500;
-  line-height: 1.3;
+.participant-ball span {
+  display: block;
+  font-size: clamp(0.68rem, calc(var(--ball-r, 60px) * 0.145), 0.9rem);
+  font-weight: 300;
+  line-height: 1.25;
   margin-top: 0.4rem;
+  max-width: 100%;
   overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
 }
 
 .ball-order {
@@ -157,14 +153,8 @@ textarea {
   translate: -50% 0;
 }
 
-/* Small balls drop the secondary lines instead of clipping them. */
-@container (max-width: 172px) {
-  .participant-ball small {
-    display: none;
-  }
-}
-
-@container (max-width: 112px) {
+/* With a very large roster, keep the name readable instead of crushing it. */
+@container (max-width: 76px) {
   .participant-ball span {
     display: none;
   }
@@ -178,7 +168,7 @@ textarea {
   right: clamp(1.75rem, 3vw, 3.75rem);
   top: clamp(1.75rem, 3vw, 3.75rem);
   width: clamp(9rem, 17vw, 19rem);
-  z-index: 3;
+  z-index: 5;
 }
 
 .screen-qr img,

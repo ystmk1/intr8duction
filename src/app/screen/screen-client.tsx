@@ -341,8 +341,6 @@ function ParticipantBall({
     return () => registerBall(participant.id, null);
   }, [participant.id, registerBall]);
 
-  const interest = participant.workInterest || participant.personalInterest;
-
   return (
     <button
       type="button"
@@ -351,13 +349,13 @@ function ParticipantBall({
       data-drawn={order >= 0 || undefined}
       onClick={onOpen}
       onContextMenu={(event) => onDeleteMenu(event, participant)}
-      aria-label={`${participant.name} 소개 보기${order >= 0 ? ` (${order + 1}번째 추첨)` : ""}`}
+      aria-label={`${participant.name}, ${participant.studentId}학번, ${participant.major}전공 소개 보기${order >= 0 ? ` (${order + 1}번째 추첨)` : ""}`}
     >
       <strong>{participant.name}</strong>
       <span>
-        {participant.studentId} · {participant.major}
+        {withSuffix(participant.studentId, "학번")} {" "}
+        {withSuffix(participant.major, "전공")}
       </span>
-      {interest && <small>{interest}</small>}
       {order >= 0 && (
         <em className="ball-order" aria-hidden="true">
           {order + 1}
