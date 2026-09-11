@@ -29,6 +29,10 @@ function ballStyle(index: number): BallStyle {
   };
 }
 
+function withSuffix(value: string, suffix: string) {
+  return value.endsWith(suffix) ? value : `${value}${suffix}`;
+}
+
 export function ScreenClient() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [joinQr, setJoinQr] = useState("");
@@ -190,14 +194,16 @@ export function ScreenClient() {
             onClick={() => setSelected(null)}
             aria-label="닫기"
           >
-            ×
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6L18 18M18 6L6 18" />
+            </svg>
           </button>
 
           <header className="detail-header">
             <h1>{selected.name}</h1>
             <p>
-              {selected.major} · {selected.studentId}
-              {selected.subMajor && <span>{selected.subMajor}</span>}
+              {withSuffix(selected.studentId, "학번")} {withSuffix(selected.major, "전공")}
+              {selected.subMajor && ` ${selected.subMajor}`}
             </p>
           </header>
 

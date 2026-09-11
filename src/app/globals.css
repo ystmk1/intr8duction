@@ -325,15 +325,28 @@ textarea {
   color: var(--paper);
   cursor: pointer;
   display: flex;
-  font-size: clamp(2rem, 3vw, 3.2rem);
   height: clamp(3.5rem, 5vw, 5rem);
   justify-content: center;
   line-height: 1;
+  padding: 0;
   position: absolute;
   right: clamp(1.75rem, 3vw, 3.75rem);
   top: clamp(1.75rem, 3vw, 3.75rem);
   width: clamp(3.5rem, 5vw, 5rem);
   z-index: 3;
+}
+
+.detail-close svg {
+  display: block;
+  height: 42%;
+  width: 42%;
+}
+
+.detail-close path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: square;
+  stroke-width: 2;
 }
 
 .detail-close:hover,
@@ -361,13 +374,10 @@ textarea {
   font-size: clamp(1.15rem, 1.8vw, 2rem);
   font-weight: 600;
   margin: 1rem 0 0;
-}
-
-.detail-header p span {
-  display: block;
-  font-size: 0.72em;
-  font-weight: 500;
-  margin-top: 0.2rem;
+  max-width: calc(100vw - 10rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .detail-field {
