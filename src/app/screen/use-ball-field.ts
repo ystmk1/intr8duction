@@ -26,8 +26,8 @@ type Options = {
 /** Keep the field airy; even a one-person roster never produces a giant ball. */
 function radiusFor(count: number, width: number, height: number) {
   if (count < 1) return 0;
-  const ideal = Math.sqrt((width * height * 0.085) / (Math.PI * count));
-  const viewportCap = Math.min(78, Math.min(width, height) * 0.095);
+  const ideal = Math.sqrt((width * height * 0.05) / (Math.PI * count));
+  const viewportCap = Math.min(54, Math.min(width, height) * 0.062);
   return Math.max(18, Math.min(ideal, viewportCap));
 }
 
