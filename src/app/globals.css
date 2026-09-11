@@ -341,6 +341,12 @@ textarea {
   height: 42%;
   width: 42%;
 }
+.join-form textarea {
+  display: block;
+  height: auto;
+  overflow: hidden;
+}
+
 
 .detail-close path {
   fill: none;

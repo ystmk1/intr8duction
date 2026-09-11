@@ -10,6 +10,14 @@ export function JoinForm() {
   const [photoCount, setPhotoCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
 
+  function resizeTextarea(event: FormEvent<HTMLTextAreaElement>) {
+    const textarea = event.currentTarget;
+    const borderHeight = textarea.offsetHeight - textarea.clientHeight;
+
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight + borderHeight}px`;
+  }
+
   function handlePhotos(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.currentTarget.files ?? []);
 
@@ -104,17 +112,32 @@ export function JoinForm() {
 
         <label>
           <span>작업 관심사</span>
-          <textarea name="workInterest" maxLength={180} rows={3} />
+          <textarea
+            name="workInterest"
+            maxLength={180}
+            rows={1}
+            onInput={resizeTextarea}
+          />
         </label>
 
         <label>
           <span>개인 관심사</span>
-          <textarea name="personalInterest" maxLength={180} rows={3} />
+          <textarea
+            name="personalInterest"
+            maxLength={180}
+            rows={1}
+            onInput={resizeTextarea}
+          />
         </label>
 
         <label>
           <span>하고 싶은 말</span>
-          <textarea name="message" maxLength={240} rows={3} />
+          <textarea
+            name="message"
+            maxLength={240}
+            rows={1}
+            onInput={resizeTextarea}
+          />
         </label>
 
         <label className="photo-field">
