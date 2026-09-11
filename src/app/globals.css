@@ -58,15 +58,16 @@ textarea {
   position: absolute;
   top: clamp(1.75rem, 3vw, 3.75rem);
   width: clamp(4.75rem, 7vw, 7.25rem);
-  z-index: 3;
+  /* Above the balls, unlike the QR, so the mark is never covered. */
+  z-index: 5;
 }
 
-/* The physics field fills the monitor; JS writes every ball transform. */
+/* Pinned to the viewport, not the padded shell, so the balls bounce off the
+   real browser edges on all four sides. JS writes every ball transform. */
 .ball-field {
   inset: 0;
-  overflow: hidden;
-  position: absolute;
-  z-index: 1;
+  position: fixed;
+  z-index: 4;
 }
 
 .participant-ball {
@@ -109,17 +110,6 @@ textarea {
   background: var(--paper);
   box-shadow: inset 0 0 0 0.32rem var(--brand);
   color: var(--ink);
-}
-
-.participant-ball[data-winner] {
-  box-shadow:
-    0 0 0 0.75rem var(--paper),
-    0 1.5rem 4rem rgb(0 0 0 / 0.35);
-  z-index: 5;
-}
-
-.participant-ball[data-dimmed] {
-  opacity: 0.3;
 }
 
 .participant-ball strong {
@@ -203,27 +193,6 @@ textarea {
   background: var(--paper);
 }
 
-.draw-banner {
-  align-content: center;
-  animation: draw-pulse 900ms ease-in-out infinite;
-  background: radial-gradient(
-    circle at center,
-    rgb(0 0 0 / 0.55),
-    rgb(0 0 0 / 0) 62%
-  );
-  color: var(--paper);
-  display: grid;
-  font-size: clamp(3.5rem, 13vw, 15rem);
-  font-weight: 700;
-  inset: 0;
-  justify-items: center;
-  letter-spacing: -0.07em;
-  margin: 0;
-  pointer-events: none;
-  position: absolute;
-  z-index: 4;
-}
-
 .screen-notice {
   background: var(--paper);
   bottom: clamp(1.75rem, 3vw, 3.75rem);
@@ -236,16 +205,6 @@ textarea {
   position: absolute;
   translate: -50% 0;
   z-index: 6;
-}
-
-@keyframes draw-pulse {
-  0%,
-  100% {
-    scale: 1;
-  }
-  50% {
-    scale: 1.05;
-  }
 }
 
 /* Mobile form */
@@ -631,12 +590,5 @@ textarea {
     min-height: 0;
     min-width: 0;
     width: min(76vw, 19rem);
-  }
-}
-
-/* The simulation itself slows to a drift; only the looping pulse is dropped. */
-@media (prefers-reduced-motion: reduce) {
-  .draw-banner {
-    animation: none;
   }
 }

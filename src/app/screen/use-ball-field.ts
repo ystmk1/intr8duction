@@ -9,24 +9,12 @@ import {
 } from "react";
 import {
   createBall,
-  kickBall,
   scatterBall,
   stepWorld,
   type Ball,
-  type Rect,
 } from "./ball-physics";
 import type { Participant } from "@/lib/participants";
 
-export type DrawPhase = "idle" | "spinning" | "revealing" | "shown";
-
-/** How long the balls whirl before the winner is pulled out. */
-const SPIN_MS = 1800;
-/** How long the winning ball flies to the centre before the card opens. */
-const REVEAL_MS = 820;
-const SPIN_SPEED_FACTOR = 3.4;
-const CAPTURE_SCALE = 1.85;
-/** Extra clearance around the fixed UI blocks the balls bounce off. */
-const OBSTACLE_PADDING = 10;
 const NOTICE_MS = 2400;
 
 type Options = {
@@ -35,11 +23,11 @@ type Options = {
   onReset: () => void;
 };
 
-/** Balls shrink as the field fills up, so ~26% of the screen stays covered. */
+/** Balls shrink as the field fills up, so ~13% of the screen stays covered. */
 function radiusFor(count: number, width: number, height: number) {
   if (count < 1) return 0;
-  const ideal = Math.sqrt((width * height * 0.26) / (Math.PI * count));
-  return Math.max(38, Math.min(ideal, 148));
+  const ideal = Math.sqrt((width * height * 0.13) / (Math.PI * count));
+  return Math.max(30, Math.min(ideal, 108));
 }
 
 function baseSpeed(width: number, height: number) {
@@ -66,21 +54,15 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
   const fieldRef = useRef<HTMLDivElement | null>(null);
   const nodesRef = useRef(new Map<string, HTMLElement>());
   const ballsRef = useRef<Ball[]>([]);
-  const obstaclesRef = useRef<Rect[]>([]);
   const sizeRef = useRef({ width: 0, height: 0 });
   const reducedMotionRef = useRef(false);
 
   const participantsRef = useRef(participants);
   const drawnRef = useRef<string[]>([]);
-  const phaseRef = useRef<DrawPhase>("idle");
-  const captureRef = useRef<string | null>(null);
-  const timersRef = useRef<number[]>([]);
   const noticeTimerRef = useRef(0);
   const callbacksRef = useRef({ onWinner, onReset });
 
-  const [phase, setPhase] = useState<DrawPhase>("idle");
   const [drawn, setDrawn] = useState<string[]>([]);
-  const [winnerId, setWinnerId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
 
   useLayoutEffect(() => {
@@ -98,21 +80,8 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
 
     const bounds = field.getBoundingClientRect();
     sizeRef.current = { width: bounds.width, height: bounds.height };
-
-    const blocks = document.querySelectorAll<HTMLElement>("[data-ball-block]");
-    obstaclesRef.current = Array.from(blocks).map((block) => {
-      const rect = block.getBoundingClientRect();
-      return {
-        left: rect.left - bounds.left - OBSTACLE_PADDING,
-        top: rect.top - bounds.top - OBSTACLE_PADDING,
-        right: rect.right - bounds.left + OBSTACLE_PADDING,
-        bottom: rect.bottom - bounds.top + OBSTACLE_PADDING,
-      };
-    });
   }, []);
 
-  // The QR image and the counter change size as the event runs, so the blocks
-  // the balls bounce off are re-measured after every render.
   useLayoutEffect(measure);
 
   useEffect(() => {
@@ -176,7 +145,7 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
   }, [measure]);
 
   // Simulation loop. Positions are written straight to the DOM so that the
-  // React tree only re-renders when the roster or the draw state changes.
+  // React tree only re-renders when the roster or the drawn list changes.
   useEffect(() => {
     let frame = 0;
     let last = performance.now();
@@ -191,21 +160,11 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
       if (!width || !height) return;
 
       const balls = ballsRef.current;
-      const spinning = phaseRef.current === "spinning";
-      const calm = reducedMotionRef.current;
 
       stepWorld(balls, dt, {
         width,
         height,
-        obstacles: obstaclesRef.current,
-        speed:
-          baseSpeed(width, height) *
-          (calm ? 0.18 : spinning ? SPIN_SPEED_FACTOR : 1),
-        spin: spinning && !calm,
-        captureId: captureRef.current,
-        captureX: width / 2,
-        captureY: height / 2,
-        captureScale: CAPTURE_SCALE,
+        speed: baseSpeed(width, height) * (reducedMotionRef.current ? 0.18 : 1),
       });
 
       for (const ball of balls) {
@@ -221,22 +180,12 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
 
         node.style.transform =
           `translate3d(${ball.x - ball.r}px, ${ball.y - ball.r}px, 0)` +
-          ` rotate(${ball.rot.toFixed(2)}deg) scale(${ball.scale.toFixed(3)})`;
+          ` rotate(${ball.rot.toFixed(2)}deg)`;
       }
     }
 
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, []);
-
-  const applyPhase = useCallback((next: DrawPhase) => {
-    phaseRef.current = next;
-    setPhase(next);
-  }, []);
-
-  const clearTimers = useCallback(() => {
-    for (const timer of timersRef.current) window.clearTimeout(timer);
-    timersRef.current = [];
   }, []);
 
   const showNotice = useCallback((text: string) => {
@@ -245,9 +194,8 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
     noticeTimerRef.current = window.setTimeout(() => setNotice(""), NOTICE_MS);
   }, []);
 
+  /** Picks one participant who has not come up yet and opens their card. */
   const startDraw = useCallback(() => {
-    if (phaseRef.current !== "idle") return;
-
     const roster = participantsRef.current;
     if (roster.length === 0) {
       showNotice("아직 참가자가 없습니다");
@@ -264,50 +212,17 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
     }
 
     const winner = pool[randomIndex(pool.length)];
-    applyPhase("spinning");
 
-    timersRef.current.push(
-      window.setTimeout(() => {
-        applyPhase("revealing");
-        captureRef.current = winner.id;
-        setWinnerId(winner.id);
-
-        timersRef.current.push(
-          window.setTimeout(() => {
-            setDrawn((current) =>
-              current.includes(winner.id) ? current : [...current, winner.id],
-            );
-            applyPhase("shown");
-            callbacksRef.current.onWinner(winner);
-          }, REVEAL_MS),
-        );
-      }, SPIN_MS),
-    );
-  }, [applyPhase, showNotice]);
-
-  /**
-   * Ends a draw at any stage — card closed, spin aborted, ball clicked — and
-   * returns the held ball to the field with a fresh kick.
-   */
-  const endDraw = useCallback(() => {
-    clearTimers();
-
-    const id = captureRef.current;
-    captureRef.current = null;
-    setWinnerId(null);
-
-    const ball = ballsRef.current.find((candidate) => candidate.id === id);
-    if (ball) kickBall(ball);
-
-    applyPhase("idle");
-  }, [applyPhase, clearTimers]);
+    // Written through the ref as well, so a second press in the same frame
+    // cannot land on the same person.
+    drawnRef.current = [...drawnRef.current, winner.id];
+    setDrawn(drawnRef.current);
+    callbacksRef.current.onWinner(winner);
+  }, [showNotice]);
 
   const resetDraw = useCallback(() => {
-    clearTimers();
-    captureRef.current = null;
-    setWinnerId(null);
+    drawnRef.current = [];
     setDrawn([]);
-    applyPhase("idle");
 
     const { width, height } = sizeRef.current;
     if (width && height) {
@@ -316,7 +231,7 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
 
     callbacksRef.current.onReset();
     showNotice("추첨을 초기화했습니다");
-  }, [applyPhase, clearTimers, showNotice]);
+  }, [showNotice]);
 
   // Ctrl + Shift on its own draws; Ctrl + Shift + R resets. The draw fires on
   // key-up so that a chord continuing into another key (R) never triggers it.
@@ -336,12 +251,6 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
       if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "r") {
         event.preventDefault();
         resetDraw();
-        return;
-      }
-
-      // Escape backs out of a spin that has not produced a card yet.
-      if (event.key === "Escape" && phaseRef.current === "spinning") {
-        endDraw();
       }
     }
 
@@ -366,25 +275,9 @@ export function useBallField({ participants, onWinner, onReset }: Options) {
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", disarm);
     };
-  }, [endDraw, resetDraw, startDraw]);
+  }, [resetDraw, startDraw]);
 
-  useEffect(
-    () => () => {
-      clearTimers();
-      window.clearTimeout(noticeTimerRef.current);
-    },
-    [clearTimers],
-  );
+  useEffect(() => () => window.clearTimeout(noticeTimerRef.current), []);
 
-  return {
-    fieldRef,
-    registerBall,
-    phase,
-    drawn,
-    winnerId,
-    notice,
-    startDraw,
-    endDraw,
-    resetDraw,
-  };
+  return { fieldRef, registerBall, drawn, notice, startDraw, resetDraw };
 }

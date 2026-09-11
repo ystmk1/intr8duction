@@ -1,10 +1,9 @@
 /**
- * Breakout-style ball field for the event monitor.
+ * Screensaver-style ball field for the event monitor.
  *
- * Balls keep a roughly constant speed, reflect off the viewport edges and off
- * the fixed UI blocks (logo, QR, HUD), and collide with each other as equal
- * masses. There is no gravity: the point is a restless pinball table, not a
- * pile of balls resting on the floor.
+ * Every ball holds one constant speed and only ever changes direction: it
+ * reflects off the viewport edges and bounces off the other balls as an equal
+ * mass, never overlapping them. There is no gravity and nothing ever settles.
  */
 
 export type Ball = {
@@ -18,33 +17,17 @@ export type Ball = {
   /** Current rotation in degrees, and the resting tilt it springs back to. */
   rot: number;
   tilt: number;
-  scale: number;
   /** True while the ball is still rising in from below the bottom edge. */
   entering: boolean;
   /** Last radius written to the DOM, so we only touch layout when it changes. */
   renderedR: number;
 };
 
-export type Rect = {
-  left: number;
-  top: number;
-  right: number;
-  bottom: number;
-};
-
 export type WorldOptions = {
   width: number;
   height: number;
-  obstacles: Rect[];
-  /** Speed every free ball is nudged back towards, in px/s. */
+  /** The speed every ball holds, in px/s. */
   speed: number;
-  /** Free-spinning balls while a draw is running. */
-  spin: boolean;
-  /** Ball pulled out of the simulation and flown to the centre. */
-  captureId: string | null;
-  captureX: number;
-  captureY: number;
-  captureScale: number;
 };
 
 const SUBSTEP = 1 / 120;
@@ -81,7 +64,6 @@ export function createBall(
     r,
     rot: 0,
     tilt: (Math.random() - 0.5) * 2 * MAX_TILT,
-    scale: 1,
     entering: true,
     renderedR: -1,
   };
@@ -103,7 +85,6 @@ export function scatterBall(ball: Ball, width: number, height: number) {
   ball.vx = Math.cos(angle);
   ball.vy = Math.sin(angle);
   ball.entering = false;
-  ball.scale = 1;
 }
 
 /** Sends a ball off in a fresh random direction, keeping where it is. */
@@ -121,11 +102,11 @@ export function stepWorld(balls: Ball[], dt: number, options: WorldOptions) {
     integrate(balls, h, options);
 
     for (let pass = 0; pass < RELAX_PASSES; pass += 1) {
-      resolveBallCollisions(balls, options.captureId);
+      resolveBallCollisions(balls);
     }
 
-    // Contact relaxation can shove a ball through a wall or into a block, so
-    // the hard boundaries always get the last word.
+    // Contact relaxation can shove a ball through a wall, so the edges always
+    // get the last word.
     containBalls(balls, options);
     remaining -= h;
   }
@@ -133,35 +114,21 @@ export function stepWorld(balls: Ball[], dt: number, options: WorldOptions) {
 
 function containBalls(balls: Ball[], options: WorldOptions) {
   for (const ball of balls) {
-    if (ball.id === options.captureId || ball.entering) continue;
-
-    bounceOffWalls(ball, options.width, options.height);
-    for (const rect of options.obstacles) bounceOffRect(ball, rect);
+    if (!ball.entering) bounceOffWalls(ball, options.width, options.height);
   }
 }
 
 function integrate(balls: Ball[], h: number, options: WorldOptions) {
-  const { width, height, obstacles, speed, spin, captureId } = options;
+  const { width, height, speed } = options;
 
   for (const ball of balls) {
-    if (ball.id === captureId) {
-      ball.x = approach(ball.x, options.captureX, 9, h);
-      ball.y = approach(ball.y, options.captureY, 9, h);
-      ball.scale = approach(ball.scale, options.captureScale, 8, h);
-      ball.rot = approach(ball.rot, 0, 8, h);
-      ball.vx = 0;
-      ball.vy = 0;
-      continue;
-    }
-
-    ball.scale = approach(ball.scale, 1, 8, h);
-
-    // Nudge the speed back to target so nothing stalls or runs away.
+    // Every ball holds exactly the target speed, so a collision only ever
+    // changes its direction — never leaves it crawling or stopped.
     const current = Math.hypot(ball.vx, ball.vy);
     if (current < 1e-4) {
       kickBall(ball);
     } else {
-      const factor = 1 + (speed / current - 1) * (1 - Math.exp(-9 * h));
+      const factor = speed / current;
       ball.vx *= factor;
       ball.vy *= factor;
     }
@@ -176,16 +143,8 @@ function integrate(balls: Ball[], h: number, options: WorldOptions) {
       bounceOffWalls(ball, width, height);
     }
 
-    for (const rect of obstacles) {
-      bounceOffRect(ball, rect);
-    }
-
-    if (spin) {
-      ball.rot += (ball.vx >= 0 ? 1 : -1) * 260 * h;
-    } else {
-      const target = ball.tilt + clamp(ball.vx * 0.02, -MAX_TILT, MAX_TILT);
-      ball.rot = approach(ball.rot, target, 3, h);
-    }
+    const target = ball.tilt + clamp(ball.vx * 0.02, -MAX_TILT, MAX_TILT);
+    ball.rot = approach(ball.rot, target, 3, h);
   }
 }
 
@@ -222,56 +181,15 @@ function bounceOffWalls(ball: Ball, width: number, height: number) {
   }
 }
 
-function bounceOffRect(ball: Ball, rect: Rect) {
-  const nearestX = clamp(ball.x, rect.left, rect.right);
-  const nearestY = clamp(ball.y, rect.top, rect.bottom);
-  let dx = ball.x - nearestX;
-  let dy = ball.y - nearestY;
-  let distance = Math.hypot(dx, dy);
-
-  if (distance >= ball.r) return;
-
-  if (distance < 1e-6) {
-    // Centre sits inside the block: eject along the shallowest edge.
-    const toLeft = ball.x - rect.left;
-    const toRight = rect.right - ball.x;
-    const toTop = ball.y - rect.top;
-    const toBottom = rect.bottom - ball.y;
-    const smallest = Math.min(toLeft, toRight, toTop, toBottom);
-
-    if (smallest === toLeft) {
-      dx = -1;
-      dy = 0;
-    } else if (smallest === toRight) {
-      dx = 1;
-      dy = 0;
-    } else if (smallest === toTop) {
-      dx = 0;
-      dy = -1;
-    } else {
-      dx = 0;
-      dy = 1;
-    }
-
-    distance = 1;
-  }
-
-  const nx = dx / distance;
-  const ny = dy / distance;
-  ball.x = nearestX + nx * ball.r;
-  ball.y = nearestY + ny * ball.r;
-  reflect(ball, nx, ny);
-}
-
 /** Equal-mass elastic collisions: the balls swap their normal velocities. */
-function resolveBallCollisions(balls: Ball[], captureId: string | null) {
+function resolveBallCollisions(balls: Ball[]) {
   for (let i = 0; i < balls.length; i += 1) {
     const a = balls[i];
-    if (a.id === captureId || a.entering) continue;
+    if (a.entering) continue;
 
     for (let j = i + 1; j < balls.length; j += 1) {
       const b = balls[j];
-      if (b.id === captureId || b.entering) continue;
+      if (b.entering) continue;
 
       const dx = b.x - a.x;
       const dy = b.y - a.y;

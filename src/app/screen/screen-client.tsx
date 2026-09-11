@@ -46,15 +46,11 @@ export function ScreenClient() {
     setSelected(null);
   }, []);
 
-  const {
-    fieldRef,
-    registerBall,
-    phase,
-    drawn,
-    winnerId,
-    notice,
-    endDraw,
-  } = useBallField({ participants, onWinner, onReset });
+  const { fieldRef, registerBall, drawn, notice } = useBallField({
+    participants,
+    onWinner,
+    onReset,
+  });
 
   useEffect(() => {
     let active = true;
@@ -98,17 +94,7 @@ export function ScreenClient() {
 
   const closeDetail = useCallback(() => {
     setSelected(null);
-    endDraw();
-  }, [endDraw]);
-
-  /** Clicking a ball takes over from any draw still in flight. */
-  const openDetail = useCallback(
-    (participant: Participant) => {
-      endDraw();
-      setSelected(participant);
-    },
-    [endDraw],
-  );
+  }, []);
 
   useEffect(() => {
     if (!selected) return;
@@ -171,7 +157,6 @@ export function ScreenClient() {
     }
   }
 
-  const drawing = phase === "spinning" || phase === "revealing";
   const detailItemCount = selected
     ? [
         selected.workInterest,
@@ -182,7 +167,7 @@ export function ScreenClient() {
     : 0;
 
   return (
-    <main className="screen-shell" data-phase={phase}>
+    <main className="screen-shell">
       <Image
         className="screen-logo"
         src="/logo_white.svg"
@@ -190,7 +175,6 @@ export function ScreenClient() {
         width={108}
         height={108}
         priority
-        data-ball-block
       />
 
       <div
@@ -206,21 +190,13 @@ export function ScreenClient() {
               key={participant.id}
               participant={participant}
               order={order}
-              isWinner={participant.id === winnerId}
-              dimmed={drawing && participant.id !== winnerId}
               registerBall={registerBall}
-              onOpen={() => openDetail(participant)}
+              onOpen={() => setSelected(participant)}
               onDeleteMenu={openDeleteMenu}
             />
           );
         })}
       </div>
-
-      {drawing && (
-        <p className="draw-banner" role="status">
-          {phase === "spinning" ? "추첨 중" : "당첨"}
-        </p>
-      )}
 
       {notice && (
         <p className="screen-notice" role="status">
@@ -228,7 +204,7 @@ export function ScreenClient() {
         </p>
       )}
 
-      <aside className="screen-qr" aria-label="QR code" data-ball-block>
+      <aside className="screen-qr" aria-label="QR code">
         {joinQr ? (
           <Image src={joinQr} alt="" width={520} height={520} unoptimized />
         ) : (
@@ -342,8 +318,6 @@ type BallProps = {
   participant: Participant;
   /** Position in the draw order, or -1 while the ball is still in the pool. */
   order: number;
-  isWinner: boolean;
-  dimmed: boolean;
   registerBall: (id: string, node: HTMLElement | null) => void;
   onOpen: () => void;
   onDeleteMenu: (
@@ -355,8 +329,6 @@ type BallProps = {
 function ParticipantBall({
   participant,
   order,
-  isWinner,
-  dimmed,
   registerBall,
   onOpen,
   onDeleteMenu,
@@ -377,8 +349,6 @@ function ParticipantBall({
       className="participant-ball"
       ref={nodeRef}
       data-drawn={order >= 0 || undefined}
-      data-winner={isWinner || undefined}
-      data-dimmed={dimmed || undefined}
       onClick={onOpen}
       onContextMenu={(event) => onDeleteMenu(event, participant)}
       aria-label={`${participant.name} 소개 보기${order >= 0 ? ` (${order + 1}번째 추첨)` : ""}`}
