@@ -2,12 +2,23 @@
 
 import Image from "next/image";
 import QRCode from "qrcode";
-import { CSSProperties, useEffect, useState } from "react";
+import {
+  CSSProperties,
+  MouseEvent as ReactMouseEvent,
+  useEffect,
+  useState,
+} from "react";
 import type { Participant } from "@/lib/participants";
 
 type BallStyle = CSSProperties & {
   "--ball-index": number;
   "--ball-shift": string;
+};
+
+type DeleteMenu = {
+  participant: Participant;
+  x: number;
+  y: number;
 };
 
 function ballStyle(index: number): BallStyle {
@@ -22,6 +33,10 @@ export function ScreenClient() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [joinQr, setJoinQr] = useState("");
   const [selected, setSelected] = useState<Participant | null>(null);
+  const [deleteMenu, setDeleteMenu] = useState<DeleteMenu | null>(null);
+  const [deleteState, setDeleteState] = useState<
+    "idle" | "deleting" | "error"
+  >("idle");
 
   useEffect(() => {
     let active = true;
@@ -67,6 +82,56 @@ export function ScreenClient() {
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [selected]);
 
+  useEffect(() => {
+    if (!deleteMenu) return;
+
+    const closeMenu = () => setDeleteMenu(null);
+    window.addEventListener("pointerdown", closeMenu);
+    window.addEventListener("resize", closeMenu);
+
+    return () => {
+      window.removeEventListener("pointerdown", closeMenu);
+      window.removeEventListener("resize", closeMenu);
+    };
+  }, [deleteMenu]);
+
+  function openDeleteMenu(
+    event: ReactMouseEvent<HTMLButtonElement>,
+    participant: Participant,
+  ) {
+    event.preventDefault();
+    setDeleteState("idle");
+    setDeleteMenu({
+      participant,
+      x: Math.min(event.clientX, window.innerWidth - 132),
+      y: Math.min(event.clientY, window.innerHeight - 96),
+    });
+  }
+
+  async function confirmDelete() {
+    if (!deleteMenu || deleteState === "deleting") return;
+
+    const target = deleteMenu.participant;
+    setDeleteState("deleting");
+
+    try {
+      const response = await fetch(`/api/participants/${target.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) throw new Error("delete failed");
+
+      setParticipants((current) =>
+        current.filter((participant) => participant.id !== target.id),
+      );
+      setSelected((current) => (current?.id === target.id ? null : current));
+      setDeleteMenu(null);
+      setDeleteState("idle");
+    } catch {
+      setDeleteState("error");
+    }
+  }
+
   return (
     <main className="screen-shell">
       <Image
@@ -87,6 +152,7 @@ export function ScreenClient() {
               key={participant.id}
               style={ballStyle(index)}
               onClick={() => setSelected(participant)}
+              onContextMenu={(event) => openDeleteMenu(event, participant)}
               aria-label={`${participant.name} 소개 보기`}
             >
               <strong>{participant.name}</strong>
@@ -169,6 +235,32 @@ export function ScreenClient() {
             ))}
           </div>
         </section>
+      )}
+
+      {deleteMenu && (
+        <div
+          className="delete-menu"
+          role="menu"
+          aria-label={`${deleteMenu.participant.name} 삭제 메뉴`}
+          style={{ left: deleteMenu.x, top: deleteMenu.y }}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={confirmDelete}
+            disabled={deleteState === "deleting"}
+          >
+            {deleteState === "deleting"
+              ? "삭제 중"
+              : deleteState === "error"
+                ? "다시 삭제"
+                : "삭제"}
+          </button>
+          <button type="button" role="menuitem" onClick={() => setDeleteMenu(null)}>
+            취소
+          </button>
+        </div>
       )}
     </main>
   );

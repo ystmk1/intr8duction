@@ -434,6 +434,44 @@ textarea {
   width: 100%;
 }
 
+.delete-menu {
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  box-shadow: 0.45rem 0.45rem 0 var(--ink);
+  display: grid;
+  min-width: 7.5rem;
+  padding: 0.35rem;
+  position: fixed;
+  z-index: 40;
+}
+
+.delete-menu button {
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.7rem 0.85rem;
+  text-align: left;
+}
+
+.delete-menu button:first-child {
+  color: var(--brand);
+}
+
+.delete-menu button:hover,
+.delete-menu button:focus-visible {
+  background: var(--ink);
+  color: var(--paper);
+  outline: 0;
+}
+
+.delete-menu button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
 @media (max-width: 1100px) {
   .screen-shell {
     grid-template-columns: minmax(0, 1fr) 14rem;

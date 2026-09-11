@@ -33,3 +33,16 @@ export function addParticipant(
   store.__cre8Participants = [...getParticipants(), participant].slice(-100);
   return participant;
 }
+
+export function deleteParticipant(id: string) {
+  const participants = getParticipants();
+  const exists = participants.some((participant) => participant.id === id);
+
+  if (exists) {
+    store.__cre8Participants = participants.filter(
+      (participant) => participant.id !== id,
+    );
+  }
+
+  return exists;
+}
