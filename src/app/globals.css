@@ -203,48 +203,6 @@ textarea {
   background: var(--paper);
 }
 
-/* Draw counter and shortcut legend; also a block the balls bounce off. */
-.screen-hud {
-  bottom: clamp(1.75rem, 3vw, 3.75rem);
-  color: var(--paper);
-  left: clamp(1.75rem, 3vw, 3.75rem);
-  position: absolute;
-  z-index: 3;
-}
-
-.hud-count {
-  align-items: baseline;
-  display: flex;
-  gap: 0.4rem;
-  line-height: 1;
-  margin: 0;
-}
-
-.hud-count strong {
-  font-size: clamp(2.5rem, 4.5vw, 4.5rem);
-  font-weight: 700;
-  letter-spacing: -0.06em;
-}
-
-.hud-count span {
-  font-size: clamp(1rem, 1.5vw, 1.6rem);
-  font-weight: 600;
-  opacity: 0.7;
-}
-
-.hud-keys {
-  font-size: clamp(0.7rem, 0.85vw, 0.95rem);
-  font-weight: 600;
-  margin: 0.7rem 0 0;
-  opacity: 0.8;
-}
-
-.hud-keys kbd {
-  border: 1.5px solid currentColor;
-  font: inherit;
-  padding: 0.1rem 0.35rem;
-}
-
 .draw-banner {
   align-content: center;
   animation: draw-pulse 900ms ease-in-out infinite;
@@ -620,11 +578,6 @@ textarea {
     right: 1.25rem;
     top: 1.25rem;
     width: min(42vw, 11rem);
-  }
-
-  .screen-hud {
-    bottom: 1.25rem;
-    left: 1.25rem;
   }
 
   .detail-header h1 {

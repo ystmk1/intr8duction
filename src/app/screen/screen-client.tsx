@@ -213,17 +213,6 @@ export function ScreenClient() {
         </p>
       )}
 
-      <div className="screen-hud" data-ball-block>
-        <p className="hud-count">
-          <strong>{drawn.length}</strong>
-          <span>/ {participants.length}</span>
-        </p>
-        <p className="hud-keys">
-          <kbd>Ctrl</kbd> + <kbd>Shift</kbd> 추첨 · <kbd>Ctrl</kbd> +{" "}
-          <kbd>Shift</kbd> + <kbd>R</kbd> 초기화
-        </p>
-      </div>
-
       <aside className="screen-qr" aria-label="QR code" data-ball-block>
         {joinQr ? (
           <Image src={joinQr} alt="" width={520} height={520} unoptimized />
