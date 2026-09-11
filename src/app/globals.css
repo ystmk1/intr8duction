@@ -84,7 +84,9 @@ textarea {
   justify-content: center;
   left: 0;
   overflow: hidden;
-  padding: 16% 12% 12%;
+  /* Sized off the radius, never a percentage: percentage padding resolves
+     against the ball field, not the ball, which turns it into an ellipse. */
+  padding: calc(var(--ball-r, 60px) * 0.26);
   position: absolute;
   text-align: center;
   top: 0;
@@ -252,6 +254,13 @@ textarea {
   display: block;
   height: auto;
   overflow: hidden;
+}
+
+/* Optional fields say so, and the hint clears as soon as you type. */
+.join-form input::placeholder,
+.join-form textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.6;
 }
 
 .join-form input:focus,

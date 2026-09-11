@@ -201,23 +201,29 @@ export async function POST(request: Request) {
       }
     }
 
-    for (const [index, photo] of photos.entries()) {
-      const path = `${participantId}/${index + 1}.${extensionFor(photo.type)}`;
-      const { error: uploadError } = await supabase.storage
-        .from(photoBucket)
-        .upload(path, await photo.arrayBuffer(), {
-          contentType: photo.type,
-          upsert: false,
-        });
+    // Uploaded together rather than one after another: two photos on a phone
+    // connection took long enough in sequence to time the submission out.
+    const uploads = await Promise.all(
+      photos.map(async (photo, index) => {
+        const path = `${participantId}/${index + 1}.${extensionFor(photo.type)}`;
+        const { error: uploadError } = await supabase.storage
+          .from(photoBucket)
+          .upload(path, await photo.arrayBuffer(), {
+            contentType: photo.type,
+            upsert: false,
+          });
 
-      if (uploadError) {
-        if (photoPaths.length) {
-          await supabase.storage.from(photoBucket).remove(photoPaths);
-        }
-        return NextResponse.json({ error: "PHOTO_UPLOAD_FAILED" }, { status: 503 });
+        return { path, failed: Boolean(uploadError) };
+      }),
+    );
+
+    photoPaths.push(...uploads.filter((u) => !u.failed).map((u) => u.path));
+
+    if (uploads.some((upload) => upload.failed)) {
+      if (photoPaths.length) {
+        await supabase.storage.from(photoBucket).remove(photoPaths);
       }
-
-      photoPaths.push(path);
+      return NextResponse.json({ error: "PHOTO_UPLOAD_FAILED" }, { status: 503 });
     }
 
     const insertPayload = {
