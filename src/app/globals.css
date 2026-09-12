@@ -179,7 +179,8 @@ textarea {
   right: clamp(1.75rem, 3vw, 3.75rem);
   top: clamp(1.75rem, 3vw, 3.75rem);
   width: clamp(9rem, 17vw, 19rem);
-  z-index: 5;
+  /* Behind the balls: they pass over the code rather than under it. */
+  z-index: 3;
 }
 
 .screen-qr img,
