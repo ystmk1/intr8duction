@@ -542,10 +542,82 @@ textarea {
 }
 
 
+.detail-photo {
+  background: none;
+  border: 0;
+  cursor: zoom-in;
+  padding: 0;
+}
+
 .detail-photo img {
   height: 100%;
   object-fit: cover;
   width: 100%;
+}
+
+/* A photo lifted out of its circle and shown at its own shape. */
+.photo-zoom-layer {
+  animation: zoom-veil 420ms ease forwards;
+  background: rgb(0 0 0 / 0.86);
+  cursor: zoom-out;
+  inset: 0;
+  position: fixed;
+  z-index: 30;
+}
+
+.photo-zoom {
+  animation: photo-zoom 420ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  cursor: default;
+  /* Cover the whole way: the circle crops, and by the end the frame matches
+     the photo's own shape, so covering and containing are the same thing. */
+  object-fit: cover;
+  position: fixed;
+}
+
+.photo-zoom-close {
+  animation: zoom-veil 420ms ease forwards;
+  cursor: pointer;
+}
+
+/* Closing is the opening run backwards, landing back on its circle. */
+.photo-zoom-layer[data-closing],
+.photo-zoom[data-closing],
+.photo-zoom-layer[data-closing] .photo-zoom-close {
+  animation-direction: reverse;
+}
+
+@keyframes zoom-veil {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes photo-zoom {
+  from {
+    border-radius: 50%;
+    height: var(--from-size);
+    left: var(--from-x);
+    top: var(--from-y);
+    width: var(--from-size);
+  }
+  to {
+    border-radius: 0;
+    height: var(--to-h);
+    left: var(--to-x);
+    top: var(--to-y);
+    width: var(--to-w);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-zoom-layer,
+  .photo-zoom,
+  .photo-zoom-close {
+    animation-duration: 1ms;
+  }
 }
 
 .delete-menu {

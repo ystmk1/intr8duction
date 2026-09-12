@@ -76,13 +76,17 @@ function placementFor(count: number, index: number) {
   return [((index + 0.5) / count) * 100, 50] as const;
 }
 
-/** Clear space kept between two circles, as a share of their diameter. */
-const detailCircleGap = 0.12;
+/**
+ * The same clear space between the closest pair whatever the count, rather
+ * than a share of the circle, so the compositions are spaced alike even though
+ * their positions are deliberately uneven.
+ */
+const detailCircleGap = 0.029;
 
 /**
- * As large as the arrangement allows. The closest pair in a composition
- * decides it, so the sparse ones grow and the crowded ones stay put — a single
- * size for all of them would have to suit the tightest and waste the rest.
+ * Sized so the tightest pair in the composition lands on that gap. Sparse
+ * arrangements would have to be enormous to reach it, so they stop at a
+ * ceiling instead.
  */
 function circleSizeFor(count: number, width: number, height: number) {
   const spots = detailLayouts[count];
@@ -96,9 +100,37 @@ function circleSizeFor(count: number, width: number, height: number) {
     }
   }
 
-  const floor = Math.min(height * 0.34, width * 0.2);
-  const ceiling = Math.min(height * 0.377, width * 0.21);
-  return Math.min(ceiling, Math.max(floor, closest / (1 + detailCircleGap)));
+  const gap = Math.min(width, height) * detailCircleGap;
+  const ceiling = Math.min(height * 0.56, width * 0.32);
+  return Math.min(ceiling, closest - gap);
+}
+
+/** A photo lifted out of its circle and shown whole. */
+type PhotoZoom = {
+  src: string;
+  alt: string;
+  /** Where the circle sits, and the rectangle the photo opens out into. */
+  from: { left: number; top: number; size: number };
+  to: { left: number; top: number; width: number; height: number };
+};
+
+/** Largest rectangle of the photo's own shape that fits the screen. */
+function zoomTarget(
+  naturalWidth: number,
+  naturalHeight: number,
+  width: number,
+  height: number,
+) {
+  const ratio =
+    naturalWidth > 0 && naturalHeight > 0 ? naturalWidth / naturalHeight : 1;
+  const fit = Math.min((width * 0.9) / ratio, height * 0.86);
+
+  return {
+    width: fit * ratio,
+    height: fit,
+    left: (width - fit * ratio) / 2,
+    top: (height - fit) / 2,
+  };
 }
 
 type DetailItem =
@@ -202,20 +234,64 @@ export function ScreenClient() {
     };
   }, []);
 
+  const [zoom, setZoom] = useState<PhotoZoom | null>(null);
+  const [zoomClosing, setZoomClosing] = useState(false);
+  const zoomTimerRef = useRef(0);
+
+  function openZoom(
+    event: ReactMouseEvent<HTMLButtonElement>,
+    src: string,
+    alt: string,
+  ) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const image = event.currentTarget.querySelector("img");
+
+    window.clearTimeout(zoomTimerRef.current);
+    setZoomClosing(false);
+    setZoom({
+      src,
+      alt,
+      from: { left: rect.left, top: rect.top, size: rect.width },
+      to: zoomTarget(
+        image?.naturalWidth ?? 0,
+        image?.naturalHeight ?? 0,
+        window.innerWidth,
+        window.innerHeight,
+      ),
+    });
+  }
+
+  const closeZoom = useCallback(() => {
+    // Run the opening backwards, then drop it once it is back over its circle.
+    setZoomClosing(true);
+    window.clearTimeout(zoomTimerRef.current);
+    zoomTimerRef.current = window.setTimeout(() => {
+      setZoom(null);
+      setZoomClosing(false);
+    }, 420);
+  }, []);
+
+  useEffect(() => () => window.clearTimeout(zoomTimerRef.current), []);
+
   const closeDetail = useCallback(() => {
     setSelected(null);
+    setZoom(null);
+    setZoomClosing(false);
   }, []);
 
   useEffect(() => {
     if (!selected) return;
 
     function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") closeDetail();
+      if (event.key !== "Escape") return;
+      // A zoomed photo is on top, so it goes first and the card stays open.
+      if (zoom) closeZoom();
+      else closeDetail();
     }
 
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [closeDetail, selected]);
+  }, [closeDetail, closeZoom, selected, zoom]);
 
   useEffect(() => {
     if (!deleteMenu) return;
@@ -387,15 +463,70 @@ export function ScreenClient() {
                   <p>{item.text}</p>
                 </article>
               ) : (
-                <figure className="detail-photo" key={item.key} style={spot}>
+                <button
+                  className="detail-photo"
+                  key={item.key}
+                  style={spot}
+                  type="button"
+                  onClick={(event) =>
+                    openZoom(
+                      event,
+                      item.src,
+                      `${selected.name} 사진 ${item.position}`,
+                    )
+                  }
+                  aria-label={`${selected.name} 사진 ${item.position} 크게 보기`}
+                >
                   {/* User uploads have dynamic data URLs or Supabase Storage URLs. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={item.src} alt={`${selected.name} 사진 ${item.position}`} />
-                </figure>
+                  <img src={item.src} alt="" />
+                </button>
               );
             })}
           </div>
         </section>
+      )}
+
+      {zoom && (
+        <div
+          className="photo-zoom-layer"
+          role="dialog"
+          aria-modal="true"
+          aria-label={zoom.alt}
+          data-closing={zoomClosing || undefined}
+          onClick={closeZoom}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className="photo-zoom"
+            src={zoom.src}
+            alt={zoom.alt}
+            data-closing={zoomClosing || undefined}
+            onClick={(event) => event.stopPropagation()}
+            style={
+              {
+                "--from-x": `${zoom.from.left}px`,
+                "--from-y": `${zoom.from.top}px`,
+                "--from-size": `${zoom.from.size}px`,
+                "--to-x": `${zoom.to.left}px`,
+                "--to-y": `${zoom.to.top}px`,
+                "--to-w": `${zoom.to.width}px`,
+                "--to-h": `${zoom.to.height}px`,
+              } as CSSProperties
+            }
+          />
+
+          <button
+            className="detail-close photo-zoom-close"
+            type="button"
+            onClick={closeZoom}
+            aria-label="사진 닫기"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6L18 18M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
       )}
 
       {deleteMenu && (
