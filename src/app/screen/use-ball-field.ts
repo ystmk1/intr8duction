@@ -44,9 +44,9 @@ type Options = {
  */
 function radiusFor(count: number, width: number, height: number) {
   if (count < 1) return 0;
-  const ideal = Math.sqrt((width * height * 0.105) / (Math.PI * count));
-  const viewportCap = Math.min(80, Math.min(width, height) * 0.09);
-  return Math.max(18, Math.min(ideal, viewportCap));
+  const ideal = Math.sqrt((width * height * 0.42) / (Math.PI * count));
+  const viewportCap = Math.min(160, Math.min(width, height) * 0.18);
+  return Math.max(36, Math.min(ideal, viewportCap));
 }
 
 function baseSpeed(width: number, height: number) {
