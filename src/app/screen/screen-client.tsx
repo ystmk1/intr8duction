@@ -319,6 +319,7 @@ export function ScreenClient() {
               {withSuffix(selected.major, "전공")}
               {selected.subMajor && ` ${selected.subMajor}`}
             </p>
+            {selected.note && <p className="detail-note">{selected.note}</p>}
           </header>
 
           <div className="detail-field" data-items={detailItems.length}>

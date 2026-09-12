@@ -4,6 +4,8 @@ export type Participant = {
   studentId: string;
   major: string;
   subMajor: string;
+  /** A short free note shown under the name on the monitor. */
+  note: string;
   workInterest: string;
   personalInterest: string;
   message: string;

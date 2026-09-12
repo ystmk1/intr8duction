@@ -460,6 +460,20 @@ textarea {
   white-space: nowrap;
 }
 
+/* The free note: keeps the line breaks the participant typed, and wraps the
+   rest at word boundaries rather than between Hangul syllables. */
+.detail-header .detail-note {
+  font-size: clamp(0.95rem, 1.35vw, 1.5rem);
+  font-weight: 500;
+  margin: 0.55rem 0 0;
+  max-width: min(38rem, 46vw);
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: pre-wrap;
+  word-break: keep-all;
+}
+
 /* The circles are a composition, not a grid: each one is placed at its own
    spot from the arrangement table in screen-client, so the whole card is
    driven by --x/--y per circle and one --circle size. */

@@ -9,10 +9,14 @@ const limits = {
   name: 24,
   major: 60,
   subMajor: 60,
+  note: 80,
   workInterest: 180,
   personalInterest: 180,
   message: 240,
 } as const;
+
+const baseColumns =
+  "id,name,student_id,major,sub_major,work_interest,personal_interest,message";
 
 const photoBucket = "participant-photos";
 const allowedPhotoTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -51,6 +55,7 @@ function fromRow(
     studentId: String(row.student_id),
     major: String(row.major),
     subMajor: String(row.sub_major ?? ""),
+    note: String(row.note ?? ""),
     workInterest: String(row.work_interest ?? ""),
     personalInterest: String(row.personal_interest ?? ""),
     message: String(row.message ?? ""),
@@ -78,28 +83,28 @@ export async function GET() {
   const supabase = getSupabase();
 
   if (supabase) {
-    const currentResult = await supabase
-      .from("participants")
-      .select(
-        "id,name,student_id,major,sub_major,work_interest,personal_interest,message,photo_paths,created_at",
-      )
-      .eq("visible", true)
-      .order("created_at", { ascending: true })
-      .limit(100);
-    let rows = currentResult.data as Record<string, unknown>[] | null;
-    let error = currentResult.error;
+    // Newest columns first, falling back a step at a time, so a database that
+    // has not had every migration applied yet still serves what it does have.
+    const selects = [
+      `${baseColumns},photo_paths,note,created_at`,
+      `${baseColumns},photo_paths,created_at`,
+      `${baseColumns},created_at`,
+    ];
 
-    if (error?.code === "42703") {
-      const legacyResult = await supabase
+    let rows: Record<string, unknown>[] | null = null;
+    let error: { code?: string } | null = null;
+
+    for (const columns of selects) {
+      const result = await supabase
         .from("participants")
-        .select(
-          "id,name,student_id,major,sub_major,work_interest,personal_interest,message,created_at",
-        )
+        .select(columns)
         .eq("visible", true)
         .order("created_at", { ascending: true })
         .limit(100);
-      rows = legacyResult.data as Record<string, unknown>[] | null;
-      error = legacyResult.error;
+
+      rows = result.data as Record<string, unknown>[] | null;
+      error = result.error;
+      if (error?.code !== "42703") break;
     }
 
     if (error && error.code !== "PGRST205") {
@@ -145,6 +150,7 @@ export async function POST(request: Request) {
     studentId: readText(body.studentId, 2),
     major: readText(body.major, limits.major),
     subMajor: readText(body.subMajor, limits.subMajor),
+    note: readText(body.note, limits.note),
     workInterest: readText(body.workInterest, limits.workInterest),
     personalInterest: readText(body.personalInterest, limits.personalInterest),
     message: readText(body.message, limits.message),
@@ -226,7 +232,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "PHOTO_UPLOAD_FAILED" }, { status: 503 });
     }
 
-    const insertPayload = {
+    const basePayload = {
       id: participantId,
       name: participant.name,
       student_id: participant.studentId,
@@ -237,23 +243,29 @@ export async function POST(request: Request) {
       message: participant.message || null,
       ...(photos.length ? { photo_paths: photoPaths } : {}),
     };
-    const result = photos.length
-      ? await supabase
-          .from("participants")
-          .insert(insertPayload)
-          .select(
-            "id,name,student_id,major,sub_major,work_interest,personal_interest,message,photo_paths,created_at",
-          )
-          .single()
-      : await supabase
-          .from("participants")
-          .insert(insertPayload)
-          .select(
-            "id,name,student_id,major,sub_major,work_interest,personal_interest,message,created_at",
-          )
-          .single();
-    const data = result.data as Record<string, unknown> | null;
-    const error = result.error;
+    const photoColumns = photos.length ? ",photo_paths" : "";
+
+    // Written with the note, and again without it if that migration has not
+    // been applied yet: losing the note beats refusing the submission.
+    const attempts = [
+      { payload: { ...basePayload, note: participant.note || null }, note: true },
+      { payload: basePayload, note: false },
+    ];
+
+    let data: Record<string, unknown> | null = null;
+    let error: { code?: string } | null = null;
+
+    for (const attempt of attempts) {
+      const result = await supabase
+        .from("participants")
+        .insert(attempt.payload)
+        .select(`${baseColumns}${photoColumns}${attempt.note ? ",note" : ""},created_at`)
+        .single();
+
+      data = result.data as Record<string, unknown> | null;
+      error = result.error;
+      if (!error || (error.code !== "42703" && error.code !== "PGRST204")) break;
+    }
 
     if (error) {
       if (photoPaths.length) {

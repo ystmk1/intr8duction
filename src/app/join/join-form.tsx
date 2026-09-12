@@ -183,6 +183,17 @@ export function JoinForm() {
         </label>
 
         <label>
+          <span>추가 정보</span>
+          <textarea
+            name="note"
+            maxLength={80}
+            rows={2}
+            placeholder="빈칸 가능 · 두 줄 정도"
+            onInput={resizeTextarea}
+          />
+        </label>
+
+        <label>
           <span>작업 관심사</span>
           <textarea
             name="workInterest"
