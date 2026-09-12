@@ -8,7 +8,14 @@ type Status = "idle" | "preparing" | "submitting" | "done" | "error";
 /** Originals this large are fine — they get shrunk before they are sent. */
 const maxSourceBytes = 30 * 1024 * 1024;
 const maxPhotos = 3;
-const maxPhotoEdge = 1600;
+/**
+ * Big enough that a photo opened out to fill the monitor is never upscaled —
+ * the widest a zoom gets is about 1700px on a 1080p screen and 2300px on a
+ * 1440p one. The camera original would be four times this to upload for no
+ * visible gain, and that size is what made submissions fail before.
+ */
+const maxPhotoEdge = 2560;
+const photoQuality = 0.86;
 
 const serverMessages: Record<string, string> = {
   INVALID_PHOTOS: "사진 형식을 읽지 못했습니다. 다른 사진으로 시도해 주세요.",
@@ -51,7 +58,7 @@ async function shrinkPhoto(file: File) {
   bitmap.close();
 
   const blob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob(resolve, "image/jpeg", 0.82);
+    canvas.toBlob(resolve, "image/jpeg", photoQuality);
   });
 
   if (!blob) return file;
