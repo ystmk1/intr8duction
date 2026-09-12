@@ -179,7 +179,7 @@ export function JoinForm() {
 
         <label>
           <span>세부전공</span>
-          <input name="subMajor" maxLength={60} />
+          <input name="subMajor" maxLength={60} placeholder="빈칸 가능" />
         </label>
 
         <label>
