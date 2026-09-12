@@ -460,57 +460,26 @@ textarea {
   white-space: nowrap;
 }
 
-/* One circle size drives the whole card. The row split is forced by capping
-   the field to an exact number of columns: left to its own devices flex fits
-   four across and drops the fifth onto a row that runs off the bottom. */
+/* The circles are a composition, not a grid: each one is placed at its own
+   spot from the arrangement table in screen-client, so the whole card is
+   driven by --x/--y per circle and one --circle size. */
 .detail-field {
-  --circle: min(37vh, 26vw);
-  --columns: 3;
-  --field-gap: clamp(1rem, 1.6vw, 2rem);
-  align-content: center;
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--field-gap);
-  inset: 10vh 2vw 1vh;
-  justify-content: center;
-  margin-inline: auto;
-  max-width: calc(
-    var(--columns) * var(--circle) + (var(--columns) - 1) * var(--field-gap)
-  );
-  padding-top: clamp(5.5rem, 9vh, 7.5rem);
+  --circle: min(34vh, 20vw);
+  inset: 0;
   position: absolute;
-}
-
-/* 1-3 items sit on a single row and can afford to be large. */
-.detail-field[data-items="1"] {
-  --circle: min(62vh, 42vw);
-  --columns: 1;
-}
-
-.detail-field[data-items="2"] {
-  --circle: min(55vh, 34vw);
-  --columns: 2;
-}
-
-.detail-field[data-items="3"] {
-  --circle: min(47vh, 28vw);
-  --columns: 3;
-}
-
-/* 4 splits 2/2, 5 splits 3/2, 6 splits 3/3. */
-.detail-field[data-items="4"] {
-  --columns: 2;
 }
 
 .detail-circle,
 .detail-photo {
   aspect-ratio: 1;
   border-radius: 50%;
-  flex: 0 0 auto;
   height: var(--circle);
+  left: var(--x);
   margin: 0;
   overflow: hidden;
+  position: absolute;
+  top: var(--y);
+  translate: -50% -50%;
   width: var(--circle);
 }
 
@@ -558,12 +527,6 @@ textarea {
   font-size: calc(var(--circle) * 0.039);
 }
 
-/* The nudge reads as a deliberate offset on one row; across two it just looks
-   like the grid is broken. */
-.detail-field[data-items="2"] .detail-circle:nth-child(even),
-.detail-field[data-items="3"] .detail-circle:nth-child(even) {
-  translate: 0 8%;
-}
 
 .detail-photo img {
   height: 100%;
@@ -632,15 +595,25 @@ textarea {
     font-size: 2.25rem;
   }
 
-  /* One per row and scrollable, so the circle size is all that changes. */
+  /* No room for a composition on a phone: stack the circles and scroll. */
   .detail-field,
   .detail-field[data-items] {
     --circle: min(76vw, 19rem);
-    --columns: 1;
     align-content: flex-start;
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
     inset: 8rem 0 0;
-    max-width: none;
     overflow-y: auto;
-    padding: 5rem 1rem 2rem;
+    padding: 2rem 1rem;
+  }
+
+  .detail-field .detail-circle,
+  .detail-field .detail-photo {
+    left: auto;
+    position: relative;
+    top: auto;
+    translate: none;
   }
 }

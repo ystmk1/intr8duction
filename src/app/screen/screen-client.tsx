@@ -30,6 +30,77 @@ function detailCopySize(value: string) {
   return "detail-copy-short";
 }
 
+/**
+ * Hand-placed arrangement per number of circles, as percentages of the card.
+ * These are compositions rather than a grid, so they are laid out by position
+ * instead of being left to wrap.
+ */
+const detailLayouts: Record<number, readonly (readonly [number, number])[]> = {
+  1: [[49, 50]],
+  2: [
+    [35, 55],
+    [65, 55],
+  ],
+  3: [
+    [25, 50],
+    [51, 62],
+    [78, 53],
+  ],
+  4: [
+    [14, 50],
+    [38, 58],
+    [63, 50],
+    [86, 59],
+  ],
+  5: [
+    [23, 42],
+    [50, 34],
+    [77, 42],
+    [40, 72],
+    [64, 72],
+  ],
+  6: [
+    [14, 48],
+    [37, 34],
+    [64, 32],
+    [33, 72],
+    [61, 72],
+    [86, 58],
+  ],
+};
+
+/** Falls back to an even row for counts the compositions do not cover. */
+function placementFor(count: number, index: number) {
+  const spot = detailLayouts[count]?.[index];
+  if (spot) return spot;
+  return [((index + 0.5) / count) * 100, 50] as const;
+}
+
+type DetailItem =
+  | { kind: "copy"; key: string; label: string; text: string }
+  | { kind: "photo"; key: string; src: string; position: number };
+
+function detailItemsOf(participant: Participant): DetailItem[] {
+  const copy: DetailItem[] = (
+    [
+      { key: "work", label: "작업 관심사", text: participant.workInterest },
+      { key: "personal", label: "개인 관심사", text: participant.personalInterest },
+      { key: "message", label: "하고 싶은 말", text: participant.message },
+    ] as const
+  )
+    .filter((item) => Boolean(item.text))
+    .map((item) => ({ kind: "copy", ...item }));
+
+  const photos: DetailItem[] = (participant.photos ?? []).map((src, index) => ({
+    kind: "photo",
+    key: src,
+    src,
+    position: index + 1,
+  }));
+
+  return [...copy, ...photos];
+}
+
 export function ScreenClient() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [joinQr, setJoinQr] = useState("");
@@ -158,14 +229,7 @@ export function ScreenClient() {
     }
   }
 
-  const detailItemCount = selected
-    ? [
-        selected.workInterest,
-        selected.personalInterest,
-        selected.message,
-        ...(selected.photos ?? []),
-      ].filter(Boolean).length
-    : 0;
+  const detailItems = selected ? detailItemsOf(selected) : [];
 
   return (
     <main className="screen-shell">
@@ -257,44 +321,28 @@ export function ScreenClient() {
             </p>
           </header>
 
-          <div className="detail-field" data-items={detailItemCount}>
-            {selected.workInterest && (
-              <article
-                className={`detail-circle detail-circle-work ${detailCopySize(selected.workInterest)}`}
-              >
-                <span>작업 관심사</span>
-                <p>{selected.workInterest}</p>
-              </article>
-            )}
+          <div className="detail-field" data-items={detailItems.length}>
+            {detailItems.map((item, index) => {
+              const [x, y] = placementFor(detailItems.length, index);
+              const spot = { "--x": `${x}%`, "--y": `${y}%` } as CSSProperties;
 
-            {selected.personalInterest && (
-              <article
-                className={`detail-circle detail-circle-personal ${detailCopySize(selected.personalInterest)}`}
-              >
-                <span>개인 관심사</span>
-                <p>{selected.personalInterest}</p>
-              </article>
-            )}
-
-            {selected.message && (
-              <article
-                className={`detail-circle detail-circle-message ${detailCopySize(selected.message)}`}
-              >
-                <span>하고 싶은 말</span>
-                <p>{selected.message}</p>
-              </article>
-            )}
-
-            {(selected.photos ?? []).map((photo, index) => (
-              <figure
-                className={`detail-photo detail-photo-${index + 1}`}
-                key={photo}
-              >
-                {/* User uploads have dynamic data URLs or Supabase Storage URLs. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photo} alt={`${selected.name} 사진 ${index + 1}`} />
-              </figure>
-            ))}
+              return item.kind === "copy" ? (
+                <article
+                  className={`detail-circle ${detailCopySize(item.text)}`}
+                  key={item.key}
+                  style={spot}
+                >
+                  <span>{item.label}</span>
+                  <p>{item.text}</p>
+                </article>
+              ) : (
+                <figure className="detail-photo" key={item.key} style={spot}>
+                  {/* User uploads have dynamic data URLs or Supabase Storage URLs. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={item.src} alt={`${selected.name} 사진 ${item.position}`} />
+                </figure>
+              );
+            })}
           </div>
         </section>
       )}
