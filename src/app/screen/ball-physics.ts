@@ -46,8 +46,13 @@ const MAX_FRAME = 0.06;
 const WALL_MARGIN = 10;
 /** Clear red space kept between two balls, as a share of their radii. */
 const SEPARATION = 1.17;
-/** Spread of the per-ball speed multiplier around 1. */
-const SPEED_SPREAD = 0.22;
+/**
+ * Spread of the per-ball speed multiplier around 1. Just enough that the row
+ * they spawn in does not travel as one: at exactly equal speeds the roster
+ * stays clumped, but anything past a few percent only makes the quickest ball
+ * fast enough to smear.
+ */
+const SPEED_SPREAD = 0.06;
 /**
  * Separating one pair pushes a ball into the next one, so the contacts are
  * relaxed a few times per substep before the field is squeezed back in bounds.
