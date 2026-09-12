@@ -66,12 +66,24 @@ export function JoinForm() {
   const [errorMessage, setErrorMessage] = useState("");
   const busy = status === "preparing" || status === "submitting";
 
-  function resizeTextarea(event: FormEvent<HTMLTextAreaElement>) {
-    const textarea = event.currentTarget;
+  function fitTextarea(textarea: HTMLTextAreaElement) {
     const borderHeight = textarea.offsetHeight - textarea.clientHeight;
 
     textarea.style.height = "auto";
     textarea.style.height = `${textarea.scrollHeight + borderHeight}px`;
+  }
+
+  function resizeTextarea(event: FormEvent<HTMLTextAreaElement>) {
+    fitTextarea(event.currentTarget);
+  }
+
+  /**
+   * Sized once on mount as well. A one-line box hides the second line of a
+   * placeholder that does not fit across a phone, and the example is the point
+   * of that placeholder.
+   */
+  function fitOnMount(textarea: HTMLTextAreaElement | null) {
+    if (textarea) fitTextarea(textarea);
   }
 
   function handlePhotos(event: ChangeEvent<HTMLInputElement>) {
@@ -187,9 +199,10 @@ export function JoinForm() {
           <textarea
             name="note"
             maxLength={80}
-            rows={2}
-            placeholder="빈칸 가능 · 두 줄 정도"
+            rows={1}
+            placeholder="빈칸 가능, ex, 2학년 마치고 휴학 후 이번 학기 복학했습니다 ㅎㅎ"
             onInput={resizeTextarea}
+            ref={fitOnMount}
           />
         </label>
 
