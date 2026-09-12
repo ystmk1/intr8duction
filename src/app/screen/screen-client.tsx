@@ -76,6 +76,31 @@ function placementFor(count: number, index: number) {
   return [((index + 0.5) / count) * 100, 50] as const;
 }
 
+/** Clear space kept between two circles, as a share of their diameter. */
+const detailCircleGap = 0.12;
+
+/**
+ * As large as the arrangement allows. The closest pair in a composition
+ * decides it, so the sparse ones grow and the crowded ones stay put — a single
+ * size for all of them would have to suit the tightest and waste the rest.
+ */
+function circleSizeFor(count: number, width: number, height: number) {
+  const spots = detailLayouts[count];
+  let closest = Infinity;
+
+  for (let i = 0; spots && i < spots.length; i += 1) {
+    for (let j = i + 1; j < spots.length; j += 1) {
+      const dx = ((spots[j][0] - spots[i][0]) / 100) * width;
+      const dy = ((spots[j][1] - spots[i][1]) / 100) * height;
+      closest = Math.min(closest, Math.hypot(dx, dy));
+    }
+  }
+
+  const floor = Math.min(height * 0.34, width * 0.2);
+  const ceiling = Math.min(height * 0.377, width * 0.21);
+  return Math.min(ceiling, Math.max(floor, closest / (1 + detailCircleGap)));
+}
+
 type DetailItem =
   | { kind: "copy"; key: string; label: string; text: string }
   | { kind: "photo"; key: string; src: string; position: number };
@@ -116,6 +141,19 @@ export function ScreenClient() {
 
   const onReset = useCallback(() => {
     setSelected(null);
+  }, []);
+
+  // The circle size is worked out from the viewport, so the card needs to know
+  // how big it is. Only changes on resize, so it costs nothing to watch.
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const read = () =>
+      setViewport({ width: window.innerWidth, height: window.innerHeight });
+
+    read();
+    window.addEventListener("resize", read);
+    return () => window.removeEventListener("resize", read);
   }, []);
 
   const { fieldRef, registerBall, drawn, notice, opening } = useBallField({
@@ -230,6 +268,14 @@ export function ScreenClient() {
   }
 
   const detailItems = selected ? detailItemsOf(selected) : [];
+  const detailFieldStyle =
+    viewport.width && detailItems.length
+      ? ({
+          "--circle": `${Math.round(
+            circleSizeFor(detailItems.length, viewport.width, viewport.height),
+          )}px`,
+        } as CSSProperties)
+      : undefined;
 
   return (
     <main className="screen-shell">
@@ -322,7 +368,11 @@ export function ScreenClient() {
             {selected.note && <p className="detail-note">{selected.note}</p>}
           </header>
 
-          <div className="detail-field" data-items={detailItems.length}>
+          <div
+            className="detail-field"
+            data-items={detailItems.length}
+            style={detailFieldStyle}
+          >
             {detailItems.map((item, index) => {
               const [x, y] = placementFor(detailItems.length, index);
               const spot = { "--x": `${x}%`, "--y": `${y}%` } as CSSProperties;
