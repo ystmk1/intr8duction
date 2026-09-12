@@ -7,7 +7,7 @@ type Status = "idle" | "preparing" | "submitting" | "done" | "error";
 
 /** Originals this large are fine — they get shrunk before they are sent. */
 const maxSourceBytes = 30 * 1024 * 1024;
-const maxPhotos = 2;
+const maxPhotos = 3;
 const maxPhotoEdge = 1600;
 
 const serverMessages: Record<string, string> = {

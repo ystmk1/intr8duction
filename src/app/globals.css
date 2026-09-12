@@ -460,16 +460,47 @@ textarea {
   white-space: nowrap;
 }
 
+/* One circle size drives the whole card. The row split is forced by capping
+   the field to an exact number of columns: left to its own devices flex fits
+   four across and drops the fifth onto a row that runs off the bottom. */
 .detail-field {
+  --circle: min(37vh, 26vw);
+  --columns: 3;
+  --field-gap: clamp(1rem, 1.6vw, 2rem);
   align-content: center;
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: clamp(1rem, 1.6vw, 2rem);
+  gap: var(--field-gap);
   inset: 10vh 2vw 1vh;
   justify-content: center;
+  margin-inline: auto;
+  max-width: calc(
+    var(--columns) * var(--circle) + (var(--columns) - 1) * var(--field-gap)
+  );
   padding-top: clamp(5.5rem, 9vh, 7.5rem);
   position: absolute;
+}
+
+/* 1-3 items sit on a single row and can afford to be large. */
+.detail-field[data-items="1"] {
+  --circle: min(62vh, 42vw);
+  --columns: 1;
+}
+
+.detail-field[data-items="2"] {
+  --circle: min(55vh, 34vw);
+  --columns: 2;
+}
+
+.detail-field[data-items="3"] {
+  --circle: min(47vh, 28vw);
+  --columns: 3;
+}
+
+/* 4 splits 2/2, 5 splits 3/2, 6 splits 3/3. */
+.detail-field[data-items="4"] {
+  --columns: 2;
 }
 
 .detail-circle,
@@ -477,36 +508,10 @@ textarea {
   aspect-ratio: 1;
   border-radius: 50%;
   flex: 0 0 auto;
-  height: min(43vh, 22.5vw);
+  height: var(--circle);
   margin: 0;
-  min-height: 17rem;
-  min-width: 17rem;
   overflow: hidden;
-  width: min(43vh, 22.5vw);
-}
-
-.detail-field[data-items="1"] .detail-circle,
-.detail-field[data-items="1"] .detail-photo {
-  height: min(62vh, 42vw);
-  width: min(62vh, 42vw);
-}
-
-.detail-field[data-items="2"] .detail-circle,
-.detail-field[data-items="2"] .detail-photo {
-  height: min(55vh, 34vw);
-  width: min(55vh, 34vw);
-}
-
-.detail-field[data-items="3"] .detail-circle,
-.detail-field[data-items="3"] .detail-photo {
-  height: min(47vh, 28vw);
-  width: min(47vh, 28vw);
-}
-
-.detail-field[data-items="5"] .detail-circle,
-.detail-field[data-items="5"] .detail-photo {
-  height: min(36vh, 21vw);
-  width: min(36vh, 21vw);
+  width: var(--circle);
 }
 
 .detail-circle {
@@ -516,39 +521,47 @@ textarea {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 3.5%;
+  /* Off the circle, not a percentage: percentage padding here would resolve
+     against the field and change with the layout rather than the circle. */
+  padding: calc(var(--circle) * 0.11);
   text-align: center;
 }
 
 .detail-circle span {
-  font-size: clamp(0.78rem, 0.9vw, 1rem);
+  font-size: calc(var(--circle) * 0.04);
   font-weight: 600;
-  margin-bottom: 0.8rem;
+  margin-bottom: calc(var(--circle) * 0.04);
   opacity: 0.65;
 }
 
+/* Copy scales with the circle so it fills it at every layout, stepping down
+   as the entry gets longer. */
 .detail-circle p {
-  font-size: clamp(1rem, 1.45vw, 1.7rem);
+  font-size: calc(var(--circle) * 0.071);
   font-weight: 600;
   line-height: 1.35;
   margin: 0;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+  word-break: keep-all;
 }
 
 .detail-circle.detail-copy-medium p {
-  font-size: clamp(0.95rem, 1.2vw, 1.35rem);
+  font-size: calc(var(--circle) * 0.053);
 }
 
 .detail-circle.detail-copy-long p {
-  font-size: clamp(0.85rem, 1vw, 1.1rem);
+  font-size: calc(var(--circle) * 0.044);
 }
 
 .detail-circle.detail-copy-xlong p {
-  font-size: clamp(0.75rem, 0.85vw, 0.95rem);
+  font-size: calc(var(--circle) * 0.039);
 }
 
-.detail-circle:nth-child(even) {
+/* The nudge reads as a deliberate offset on one row; across two it just looks
+   like the grid is broken. */
+.detail-field[data-items="2"] .detail-circle:nth-child(even),
+.detail-field[data-items="3"] .detail-circle:nth-child(even) {
   translate: 0 8%;
 }
 
@@ -619,18 +632,15 @@ textarea {
     font-size: 2.25rem;
   }
 
-  .detail-field {
+  /* One per row and scrollable, so the circle size is all that changes. */
+  .detail-field,
+  .detail-field[data-items] {
+    --circle: min(76vw, 19rem);
+    --columns: 1;
     align-content: flex-start;
     inset: 8rem 0 0;
+    max-width: none;
     overflow-y: auto;
     padding: 5rem 1rem 2rem;
-  }
-
-  .detail-field[data-items] .detail-circle,
-  .detail-field[data-items] .detail-photo {
-    height: min(76vw, 19rem);
-    min-height: 0;
-    min-width: 0;
-    width: min(76vw, 19rem);
   }
 }

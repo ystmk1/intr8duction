@@ -159,7 +159,7 @@ export async function POST(request: Request) {
   }
 
   if (
-    photos.length > 2 ||
+    photos.length > 3 ||
     photos.some(
       (photo) => !allowedPhotoTypes.has(photo.type) || photo.size > maxPhotoBytes,
     )
