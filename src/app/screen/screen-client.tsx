@@ -374,9 +374,9 @@ function ParticipantBall({
       aria-label={`${participant.name}, ${participant.studentId}학번, ${participant.major}전공 소개 보기${order >= 0 ? ` (${order + 1}번째 추첨)` : ""}`}
     >
       <strong>{participant.name}</strong>
-      <span>
-        {withSuffix(participant.studentId, "학번")} {" "}
-        {withSuffix(participant.major, "전공")}
+      <span className="ball-meta">
+        <span>{withSuffix(participant.studentId, "학번")}</span>
+        <span>{withSuffix(participant.major, "전공")}</span>
       </span>
       {order >= 0 && (
         <em className="ball-order" aria-hidden="true">

@@ -114,29 +114,37 @@ textarea {
   color: var(--ink);
 }
 
+/* Both lines size off the radius alone and wrap rather than truncate. A clamp
+   floor here used to force the text wider than the ball could ever hold, which
+   is what cut the major off mid-word. */
 .participant-ball strong {
   display: block;
-  font-size: clamp(0.85rem, calc(var(--ball-r, 60px) * 0.28), 1.65rem);
+  font-size: calc(var(--ball-r, 60px) * 0.3);
   font-weight: 650;
-  line-height: 1.1;
+  line-height: 1.12;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
   width: 100%;
 }
 
-.participant-ball span {
+.participant-ball .ball-meta {
   display: block;
-  font-size: clamp(0.68rem, calc(var(--ball-r, 60px) * 0.145), 0.9rem);
+  font-size: calc(var(--ball-r, 60px) * 0.17);
   font-weight: 300;
   line-height: 1.25;
-  margin-top: 0.4rem;
+  margin-top: calc(var(--ball-r, 60px) * 0.08);
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Korean breaks between syllables by default, which strands a single
+     character on its own line. Break at words, and only split one when it
+     genuinely cannot fit. */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
   width: 100%;
+}
+
+/* 학번 and 전공 each get their own line rather than wrapping into each other. */
+.participant-ball .ball-meta span {
+  display: block;
 }
 
 .ball-order {
@@ -155,9 +163,10 @@ textarea {
   translate: -50% 0;
 }
 
-/* With a very large roster, keep the name readable instead of crushing it. */
-@container (max-width: 76px) {
-  .participant-ball span {
+/* Only once a very large roster shrinks the balls past readable does the
+   second line go, leaving the name on its own rather than a cut-off major. */
+@container (max-width: 62px) {
+  .participant-ball .ball-meta {
     display: none;
   }
 }

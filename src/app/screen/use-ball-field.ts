@@ -37,11 +37,15 @@ type Options = {
   onReset: () => void;
 };
 
-/** Keep the field airy; even a one-person roster never produces a giant ball. */
+/**
+ * Big enough that the name and the major both read at the radius-derived font
+ * sizes, small enough that the field stays airy and a one-person roster never
+ * produces a giant ball.
+ */
 function radiusFor(count: number, width: number, height: number) {
   if (count < 1) return 0;
-  const ideal = Math.sqrt((width * height * 0.05) / (Math.PI * count));
-  const viewportCap = Math.min(54, Math.min(width, height) * 0.062);
+  const ideal = Math.sqrt((width * height * 0.105) / (Math.PI * count));
+  const viewportCap = Math.min(80, Math.min(width, height) * 0.09);
   return Math.max(18, Math.min(ideal, viewportCap));
 }
 
